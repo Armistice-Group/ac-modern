@@ -1,0 +1,77 @@
+import { orgSettings } from './accounts.ts';
+import { config } from './config.ts';
+import { db as getDb } from './db.ts';
+
+/**
+ * Something a person should hear about. Workflow code collects these while it runs in a
+ * transaction and hands them to deliver() once the change is committed, so nobody is told
+ * about a change that rolled back.
+ */
+export interface Notice {
+	orgId: string;
+	/** User ids to email. */
+	to: string[];
+	subject: string;
+	text: string;
+	/** App path the message links to, e.g. /requests/12. */
+	path: string;
+	/** Also post to the organisation's Slack channel. */
+	slack?: boolean;
+}
+
+let transport: { sendMail: (m: Record<string, unknown>) => Promise<unknown> } | null | undefined;
+
+async function mailer() {
+	if (transport !== undefined) return transport;
+	if (!config.smtp) return (transport = null);
+	const { default: nodemailer } = await import('nodemailer');
+	transport = nodemailer.createTransport(config.smtp.url);
+	return transport;
+}
+
+/** Sent messages, newest last; tests and the dev console read this when no SMTP server is set. */
+export const outbox: { to: string; subject: string; text: string }[] = [];
+
+export async function deliver(notices: Notice[], origin = config.publicUrl) {
+	if (!notices.length) return;
+	const db = await getDb();
+	for (const n of notices) {
+		const link = `${origin}${n.path}`;
+		const ids = [...new Set(n.to)];
+		const recipients = ids.length
+			? await db.all<{ email: string }>(
+					`SELECT u.email FROM users u JOIN members m ON m.user_id = u.id AND m.org_id = ? WHERE m.status = 'active' AND u.id IN (${ids.map(() => '?').join(',')})`,
+					[n.orgId, ...ids]
+				)
+			: [];
+		for (const r of recipients) {
+			const text = `${n.text}\n\n${link}\n\n— ac·modern`;
+			outbox.push({ to: r.email, subject: n.subject, text });
+			if (outbox.length > 200) outbox.shift();
+			try {
+				const t = await mailer();
+				if (t) await t.sendMail({ from: config.smtp!.from, to: r.email, subject: n.subject, text });
+			} catch (err) {
+				console.warn(`[ac-modern] Email to ${r.email} failed: ${(err as Error).message}`);
+			}
+		}
+		if (n.slack) {
+			try {
+				const { slackWebhook } = await orgSettings(db, n.orgId);
+				if (slackWebhook) await postSlack(slackWebhook, `*${n.subject}*\n${n.text}\n<${link}|Open in ac·modern>`);
+			} catch (err) {
+				console.warn(`[ac-modern] Slack notification failed: ${(err as Error).message}`);
+			}
+		}
+	}
+}
+
+export async function postSlack(url: string, text: string) {
+	const res = await fetch(url, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ text }),
+		signal: AbortSignal.timeout(10_000)
+	});
+	if (!res.ok) throw new Error(`Slack answered ${res.status} ${await res.text().catch(() => '')}`.trim());
+}

@@ -1,0 +1,46 @@
+# ac·modern: self-hosted.
+#
+#   docker compose up -d
+#   open http://<this-host>:3040 and create your organisation
+#
+services:
+  ac-modern:
+    build: .
+    # image: ghcr.io/<you>/ac-modern:latest
+    container_name: ac-modern
+    restart: unless-stopped
+    ports:
+      - "3040:3000"
+    environment:
+      # Links in emails and Slack messages point here.
+      ACM_PUBLIC_URL: http://localhost:3040
+      # Email notifications (optional; without it, invite links are shown to copy).
+      # ACM_SMTP_URL: smtps://user:${SMTP_PASSWORD}@smtp.example.com
+      # ACM_SMTP_FROM: "ac·modern <access@example.com>"
+      # Skip the setup wizard:
+      # ACM_ADMIN_EMAIL: you@example.com
+      # ACM_ADMIN_PASSWORD: ${ACM_ADMIN_PASSWORD}
+      # ACM_ORG_NAME: Acme
+      # Otherwise a random key is generated at /data/secret.key — back it up with the database.
+      # ACM_SECRET_KEY: change-me-to-a-long-random-string
+      # Postgres instead of the built-in SQLite file (see the postgres service below):
+      # ACM_DATABASE_URL: postgres://acm:${POSTGRES_PASSWORD}@postgres:5432/acm
+      # Behind a TLS reverse proxy:
+      # PROTOCOL_HEADER: x-forwarded-proto
+      # HOST_HEADER: x-forwarded-host
+    volumes:
+      - ac-modern-data:/data
+
+  # postgres:
+  #   image: postgres:17-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: acm
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: acm
+  #   volumes:
+  #     - ac-modern-pg:/var/lib/postgresql/data
+
+volumes:
+  ac-modern-data:
+  # ac-modern-pg:

@@ -1,5 +1,8 @@
 name: CI
 
+# Runs on the Armistice self-hosted runners (same labels as pwnbook):
+#   self-hosted         checks, tests, build
+#   [self-hosted, x64]  anything that runs Docker containers (the Postgres service)
 on:
   pull_request:
   push:
@@ -8,17 +11,58 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch cancels the older run (never on main).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name != 'main' }}
+
 jobs:
   check:
-    runs-on: ubuntu-latest
+    name: Type-check, test (SQLite) and build
+    runs-on: self-hosted
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      # Docker jobs on the shared runner can leave root-owned files behind.
+      - name: Fix workspace permissions
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
+      # corepack honours "packageManager" in package.json (pnpm 9).
+      - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm test
       - run: pnpm build
+
+  test-postgres:
+    name: Test (Postgres)
+    runs-on: [self-hosted, x64]
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: acm_test
+        # A random host port, so parallel jobs on one runner don't collide.
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:ci@localhost:${{ job.services.postgres.ports['5432'] }}/acm_test
+    steps:
+      - name: Fix workspace permissions
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test

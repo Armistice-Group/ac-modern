@@ -41,6 +41,8 @@ export const config = {
 				required: env.ACM_OIDC_REQUIRED === 'true'
 			}
 		: null,
+	/** How often Google/Okta/Microsoft directories are pulled. */
+	directorySyncMinutes: Number(env.ACM_DIRECTORY_SYNC_MINUTES || 30),
 	/** How often expiry and reminder jobs run. */
 	jobIntervalMs: Number(env.ACM_JOB_INTERVAL_SECONDS || 60) * 1000
 };

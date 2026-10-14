@@ -127,7 +127,7 @@ export async function recordGrant(
 }
 
 /** Deactivates a member and opens removal requests for everything they hold. */
-export async function offboard(db: Db, actor: Actor & { userId: string }, userId: string, note: string, fx: Effects) {
+export async function offboard(db: Db, actor: Actor, userId: string, note: string, fx: Effects, reason: 'offboarding' | 'directory' = 'offboarding') {
 	if (userId === actor.userId) throw badRequest('You can’t offboard yourself');
 	return db.tx(async (tx) => {
 		const p = await tx.get<{ role: string; name: string; email: string }>('SELECT m.role, u.name, u.email FROM members m JOIN users u ON u.id = m.user_id WHERE m.org_id = ? AND m.user_id = ?', [
@@ -139,7 +139,7 @@ export async function offboard(db: Db, actor: Actor & { userId: string }, userId
 			const owners = await tx.get<{ n: number }>("SELECT CAST(COUNT(*) AS INTEGER) AS n FROM members WHERE org_id = ? AND role = 'owner' AND status = 'active'", [actor.orgId]);
 			if (owners!.n <= 1) throw badRequest('Make someone else an owner first');
 		}
-		await tx.run("UPDATE members SET status = 'deactivated' WHERE org_id = ? AND user_id = ?", [actor.orgId, userId]);
+		await tx.run("UPDATE members SET status = 'deactivated', deactivated_by = ? WHERE org_id = ? AND user_id = ?", [reason === 'directory' ? 'directory' : 'manual', actor.orgId, userId]);
 		await tx.run('DELETE FROM sessions WHERE user_id = ? AND org_id = ?', [userId, actor.orgId]);
 		// Their open requests go nowhere now.
 		const t = now();
@@ -148,7 +148,7 @@ export async function offboard(db: Db, actor: Actor & { userId: string }, userId
 			[t, t, actor.orgId, userId]
 		);
 		const grants = await tx.all<{ id: string }>("SELECT id FROM grants WHERE org_id = ? AND user_id = ? AND status = 'active'", [actor.orgId, userId]);
-		for (const g of grants) await startRevoke(tx, actor, g.id, 'offboarding', note, fx);
+		for (const g of grants) await startRevoke(tx, actor, g.id, reason, note, fx);
 		await record(tx, {
 			orgId: actor.orgId,
 			actorId: actor.userId,

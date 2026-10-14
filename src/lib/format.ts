@@ -67,7 +67,8 @@ export const REASON: Record<RequestReason, string> = {
 	review: 'Access review',
 	offboarding: 'Offboarding',
 	transfer: 'Transfer',
-	manual: 'Revoked by admin'
+	manual: 'Revoked by admin',
+	directory: 'Removed in the IdP'
 };
 
 export const CATEGORY: Record<RequestCategory, string> = {

@@ -181,13 +181,13 @@ export async function ticket(db: Db, orgId: string, number: number): Promise<Tic
 export async function outOfProcess(db: Db, orgId: string, from: string, to: string) {
 	const rows = await db.all<{ id: string; at: string; action: string; summary: string; data: string; actor_name: string | null; actor_email: string | null }>(
 		`SELECT e.id, e.at, e.action, e.summary, e.data, u.name AS actor_name, u.email AS actor_email FROM events e LEFT JOIN users u ON u.id = e.actor_id
-		 WHERE e.org_id = ? AND e.at >= ? AND e.at < ? AND e.action IN ('grant.recorded', 'member.updated', 'member.joined', 'member.offboarded', 'settings.updated', 'resource.updated')
+		 WHERE e.org_id = ? AND e.at >= ? AND e.at < ? AND e.action IN ('grant.recorded', 'grant.detected', 'member.updated', 'member.joined', 'member.offboarded', 'settings.updated', 'resource.updated')
 		 ORDER BY e.at DESC`,
 		[orgId, from, to]
 	);
 	const list = rows.map((r) => ({ id: r.id, at: r.at, action: r.action, summary: r.summary, actor: r.actor_name || r.actor_email || 'System', data: JSON.parse(r.data || '{}') as Record<string, unknown> }));
 	return {
-		recorded: list.filter((e) => e.action === 'grant.recorded'),
+		recorded: list.filter((e) => e.action === 'grant.recorded' || e.action === 'grant.detected'),
 		adminChanges: list.filter((e) => e.action === 'member.updated' && e.data.role !== undefined),
 		controlChanges: list.filter((e) => e.action === 'settings.updated' || (e.action === 'resource.updated' && Object.keys(e.data).some((k) => ['approval', 'ownerId', 'privileged'].includes(k))))
 	};

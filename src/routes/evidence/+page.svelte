@@ -192,7 +192,7 @@
 	</section>
 
 	<div class="grid gap-6 xl:grid-cols-3">
-		{#each [{ title: 'Access recorded outside requests', hint: 'Added directly by an admin (e.g. existing access at go-live). Each says where it came from.', items: data.outside.recorded }, { title: 'ac·modern admin changes', hint: 'Who was made (or stopped being) an admin or owner of ac·modern itself.', items: data.outside.adminChanges }, { title: 'Control changes', hint: 'Approval rules, system owners and settings changed in this period.', items: data.outside.controlChanges }] as box (box.title)}
+		{#each [{ title: 'Access outside requests', hint: 'Recorded by an admin (e.g. existing access at go-live), or detected in your IdP without a request.', items: data.outside.recorded }, { title: 'ac·modern admin changes', hint: 'Who was made (or stopped being) an admin or owner of ac·modern itself.', items: data.outside.adminChanges }, { title: 'Control changes', hint: 'Approval rules, system owners and settings changed in this period.', items: data.outside.controlChanges }] as box (box.title)}
 			<section class="card overflow-hidden">
 				<header class="border-b border-border px-4 py-3">
 					<h2 class="text-[0.8125rem] font-semibold">{box.title} <span class="font-normal text-muted-foreground">· {box.items.length}</span></h2>

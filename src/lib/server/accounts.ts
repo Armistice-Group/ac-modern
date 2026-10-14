@@ -169,10 +169,10 @@ export async function getPerson(db: Db, orgId: string, userId: string): Promise<
 export async function updateMember(db: Db, orgId: string, userId: string, patch: { role?: Role; title?: string; managerId?: string | null; status?: 'active' | 'deactivated' }) {
 	const sets: string[] = [];
 	const params: (string | null)[] = [];
-	if (patch.role) sets.push('role = ?'), params.push(patch.role);
+	if (patch.role) sets.push('role = ?', "role_source = 'manual'"), params.push(patch.role);
 	if (patch.title !== undefined) sets.push('title = ?'), params.push(patch.title);
 	if (patch.managerId !== undefined) sets.push('manager_id = ?'), params.push(patch.managerId);
-	if (patch.status) sets.push('status = ?'), params.push(patch.status);
+	if (patch.status) sets.push('status = ?', "deactivated_by = ''"), params.push(patch.status);
 	if (!sets.length) return;
 	await db.run(`UPDATE members SET ${sets.join(', ')} WHERE org_id = ? AND user_id = ?`, [...params, orgId, userId]);
 }

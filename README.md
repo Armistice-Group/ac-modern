@@ -19,6 +19,7 @@ Small teams usually handle access in Slack DMs and a spreadsheet, or pay for a h
 - **Record existing access.** Import what people already have, so reviews and offboarding cover it from day one.
 - **Audit log** of every request, decision, grant and setting change, exportable as CSV.
 - **Notifications** by email (SMTP) and to a Slack channel (incoming webhook).
+- **Directory sync** from your IdP: SCIM 2.0 push (Okta, Entra ID, JumpCloud, OneLogin, Rippling) or scheduled pulls from Google Workspace, the Okta API and Microsoft Graph. People are added with title and manager, and deactivation in the IdP offboards them (opening removals for all their access). IdP groups map to ac·modern admins, or to access levels, so access that already lives in the IdP is detected and tracked. Access granted there without a request is flagged in the audit evidence.
 - **Single sign-on (OIDC)** per organisation: Okta, Entra ID, Google, JumpCloud, Authentik, Keycloak. Email domains are claimed per org (DNS-verified in the cloud), accounts are created on first sign-in, and SSO can be required, with owners keeping a password as a break-glass.
 
 | | |

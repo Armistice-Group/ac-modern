@@ -22,7 +22,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// JSON APIs must come from our own host: browsers always send Origin on cross-site
 	// and non-GET requests, so a mismatch means a forged request.
-	if (isApi && method !== 'GET') {
+	if (isApi && method !== 'GET' && !pathname.startsWith('/api/v1/')) {
 		const origin = event.request.headers.get('origin');
 		if (origin) {
 			const h = event.request.headers;
@@ -36,6 +36,22 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const visible = publicUrl(event.url, event.request.headers);
+	// Machine endpoints (SCIM, the public API) bring their own bearer tokens: no cookies, no redirects.
+	if (pathname.startsWith('/scim/') || pathname.startsWith('/api/v1/')) {
+		event.locals.origin = config.publicUrl || visible.origin;
+		event.locals.secure = visible.protocol === 'https:';
+		event.locals.auth = 'anonymous';
+		event.locals.user = null;
+		event.locals.org = null;
+		event.locals.role = null;
+		event.locals.orgs = [];
+		event.locals.sessionId = null;
+		event.locals.ssoRequired = false;
+		const response = await resolve(event);
+		response.headers.set('X-Content-Type-Options', 'nosniff');
+		response.headers.set('Cache-Control', 'no-store');
+		return response;
+	}
 	event.locals.origin = config.publicUrl || visible.origin;
 	event.locals.secure = visible.protocol === 'https:';
 	try {

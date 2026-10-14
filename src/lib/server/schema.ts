@@ -248,5 +248,69 @@ CREATE TABLE user_identities (
 );
 
 ALTER TABLE sessions ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'password'
+`,
+	// Directory sync: users and groups from the identity provider (SCIM push or API pull).
+	`
+CREATE TABLE directory_sources (
+	org_id TEXT PRIMARY KEY REFERENCES orgs(id) ON DELETE CASCADE,
+	kind TEXT NOT NULL,
+	config TEXT NOT NULL DEFAULT '',
+	scim_token_hash TEXT,
+	on_deactivate TEXT NOT NULL DEFAULT 'offboard',
+	create_members INTEGER NOT NULL DEFAULT 1,
+	last_sync_at TEXT,
+	last_error TEXT NOT NULL DEFAULT '',
+	stats TEXT NOT NULL DEFAULT '{}',
+	created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX directory_sources_token ON directory_sources(scim_token_hash);
+
+CREATE TABLE directory_users (
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	id TEXT NOT NULL,
+	external_id TEXT NOT NULL DEFAULT '',
+	email TEXT NOT NULL,
+	name TEXT NOT NULL DEFAULT '',
+	title TEXT NOT NULL DEFAULT '',
+	manager_ref TEXT NOT NULL DEFAULT '',
+	active INTEGER NOT NULL DEFAULT 1,
+	user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+	raw TEXT NOT NULL DEFAULT '{}',
+	updated_at TEXT NOT NULL,
+	PRIMARY KEY (org_id, id)
+);
+CREATE INDEX directory_users_email ON directory_users(org_id, email);
+
+CREATE TABLE directory_groups (
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	id TEXT NOT NULL,
+	external_id TEXT NOT NULL DEFAULT '',
+	name TEXT NOT NULL,
+	updated_at TEXT NOT NULL,
+	PRIMARY KEY (org_id, id)
+);
+
+CREATE TABLE directory_memberships (
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	group_id TEXT NOT NULL,
+	user_id TEXT NOT NULL,
+	PRIMARY KEY (org_id, group_id, user_id)
+);
+
+CREATE TABLE group_mappings (
+	id TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	group_id TEXT NOT NULL,
+	target TEXT NOT NULL,
+	resource_id TEXT REFERENCES resources(id) ON DELETE CASCADE,
+	role_id TEXT REFERENCES resource_roles(id) ON DELETE CASCADE,
+	created_at TEXT NOT NULL
+);
+CREATE INDEX group_mappings_org ON group_mappings(org_id);
+
+ALTER TABLE members ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
+ALTER TABLE members ADD COLUMN role_source TEXT NOT NULL DEFAULT 'manual';
+ALTER TABLE members ADD COLUMN deactivated_by TEXT NOT NULL DEFAULT '';
+ALTER TABLE grants ADD COLUMN idp_group TEXT
 `
 ];

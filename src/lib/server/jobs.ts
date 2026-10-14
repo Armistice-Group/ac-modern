@@ -2,6 +2,7 @@ import { orgSettings } from './accounts.ts';
 import { config } from './config.ts';
 import { db } from './db.ts';
 import { sweepExpiry } from './grants.ts';
+import { syncDirectory } from './directory.ts';
 import { effects, flush } from './requests.ts';
 
 let timer: ReturnType<typeof setInterval> | undefined;
@@ -19,6 +20,11 @@ export async function runJobs() {
 				const fx = effects();
 				const settings = await orgSettings(d, o.id);
 				await sweepExpiry(d, o.id, settings.expiryReminderDays ?? 3, fx);
+				// Pulled directories (Google, Okta, Microsoft) sync on a schedule; SCIM pushes.
+				const dir = await d.get<{ kind: string; last_sync_at: string | null }>('SELECT kind, last_sync_at FROM directory_sources WHERE org_id = ?', [o.id]);
+				if (dir && dir.kind !== 'scim' && (!dir.last_sync_at || Date.now() - Date.parse(dir.last_sync_at) > config.directorySyncMinutes * 60_000)) {
+					await syncDirectory(d, o.id, fx).catch((err) => console.warn(`[ac-modern] Directory sync for ${o.id} failed: ${(err as Error).message}`));
+				}
 				await flush(d, o.id, fx, config.publicUrl);
 			} catch (err) {
 				console.error(`[ac-modern] Jobs failed for org ${o.id}:`, err);

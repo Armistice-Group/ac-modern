@@ -410,7 +410,8 @@ const REVOKE_WHY: Record<RequestReason, string> = {
 	review: 'An access review decided to remove it',
 	offboarding: 'They’re being offboarded',
 	transfer: 'They moved to a different role',
-	manual: 'An admin revoked it'
+	manual: 'An admin revoked it',
+	directory: 'They were deactivated in the identity provider'
 };
 
 // ── Approving ────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ export type Fulfillment = 'manual' | 'webhook';
 export type RequestStatus = 'pending_approval' | 'pending_fulfillment' | 'completed' | 'denied' | 'cancelled';
 export type RequestKind = 'grant' | 'revoke';
 /** Why a revoke request exists. Grant requests are always 'request'. */
-export type RequestReason = 'request' | 'expired' | 'review' | 'offboarding' | 'transfer' | 'manual';
+export type RequestReason = 'request' | 'expired' | 'review' | 'offboarding' | 'transfer' | 'manual' | 'directory';
 /**
  * What kind of change a request is, for audit sampling: access for a new hire, a transfer
  * between teams, a different level on a resource they already use, a resource they didn't
@@ -14,7 +14,7 @@ export type RequestCategory = 'new_hire' | 'transfer' | 'change' | 'new_access' 
 /** In what role someone approved a step. */
 export type ApprovalCapacity = 'manager' | 'system_owner' | 'approver' | 'admin_fallback' | 'admin_override' | 'self' | '';
 export type GrantStatus = 'active' | 'pending_revoke' | 'revoked';
-export type GrantSource = 'request' | 'manual' | 'import';
+export type GrantSource = 'request' | 'manual' | 'import' | 'idp';
 
 export interface Org {
 	id: string;

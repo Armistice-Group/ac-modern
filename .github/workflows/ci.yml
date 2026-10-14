@@ -54,8 +54,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-    env:
-      TEST_DATABASE_URL: postgres://postgres:ci@localhost:${{ job.services.postgres.ports['5432'] }}/acm_test
     steps:
       - name: Fix workspace permissions
         run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
@@ -65,4 +63,7 @@ jobs:
           node-version: 24
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      # The service's host port is only known at runtime, so the URL is set here.
       - run: pnpm test
+        env:
+          TEST_DATABASE_URL: postgres://postgres:ci@localhost:${{ job.services.postgres.ports['5432'] }}/acm_test

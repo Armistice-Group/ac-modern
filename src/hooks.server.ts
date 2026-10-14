@@ -54,7 +54,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return response;
 	}
 	event.locals.origin = config.publicUrl || visible.origin;
-	event.locals.secure = visible.protocol === 'https:';
+	// Whether cookies get the Secure flag. Browsers send Origin on every sign-in request,
+	// and it's the scheme the browser actually used: behind a TLS proxy it's https, but
+	// opening the container's port directly is plain http, where a Secure cookie would be
+	// dropped silently and sign-in would just bounce back. Without Origin, trust the proxy.
+	const browserOrigin = event.request.headers.get('origin');
+	event.locals.secure = browserOrigin && /^https?:\/\//.test(browserOrigin) ? browserOrigin.startsWith('https://') : visible.protocol === 'https:';
 	try {
 		event.locals.ip = event.getClientAddress();
 	} catch {}

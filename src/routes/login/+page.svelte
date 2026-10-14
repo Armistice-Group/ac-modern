@@ -8,6 +8,11 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+	// Plain http to something other than this machine: say so, and point at the real address.
+	let insecure = $state(false);
+	$effect(() => {
+		insecure = location.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+	});
 	let ssoMode = $state(false);
 	let email = $state('');
 	let busy = $state(false);
@@ -67,6 +72,12 @@
 		hint={data.cloud ? 'New here? <a class="text-primary hover:underline" href="/signup">Create an organisation</a>' : undefined}
 		onsubmit={login}
 	/>
+	{#if insecure}
+		<div class="fixed inset-x-0 top-6 mx-auto w-fit max-w-[calc(100%-2rem)] rounded-xl border border-warning/40 bg-warning/10 px-4 py-2.5 text-center text-xs text-warning">
+			This connection isn’t encrypted, so your password would travel in the clear.
+			{#if data.publicUrl?.startsWith('https://')}Sign in at <a class="font-medium underline" href="{data.publicUrl}/login">{data.publicUrl.replace('https://', '')}</a> instead.{:else}Put ac·modern behind HTTPS before using it for real.{/if}
+		</div>
+	{/if}
 	<div class="fixed inset-x-0 bottom-8 flex items-center justify-center gap-3 text-xs">
 		<a class="btn btn-ghost btn-sm" href="/forgot-password">Forgot password?</a>
 		{#if data.cloud}<button class="btn btn-secondary btn-sm" onclick={() => (ssoMode = true)}><KeyRound />Sign in with SSO</button>{/if}

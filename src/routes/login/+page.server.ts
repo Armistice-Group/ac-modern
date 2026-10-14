@@ -15,5 +15,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const s = org ? await ssoSettings(d, org.id) : null;
 		if (s) sso = { name: s.name, href: `/auth/oidc/start?org=${org!.id}` };
 	}
-	return { cloud: config.mode === 'cloud', error, sso, ssoRequired: !!locals.ssoRequired };
+	return { cloud: config.mode === 'cloud', error, sso, ssoRequired: !!locals.ssoRequired, publicUrl: config.publicUrl };
 };

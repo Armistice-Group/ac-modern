@@ -65,7 +65,9 @@ export async function saveSso(
 ) {
 	let issuer: URL;
 	try {
-		issuer = new URL(input.issuer);
+		// Stored as typed: the issuer must match the provider's exactly, and some (Authentik,
+		// Keycloak) end theirs with a slash while others (Okta, Google) don't.
+		issuer = new URL(input.issuer.trim());
 	} catch {
 		throw badRequest('The issuer must be a URL, e.g. https://acme.okta.com');
 	}
@@ -78,7 +80,7 @@ export async function saveSso(
 		`INSERT INTO org_sso (org_id, issuer, client_id, client_secret, name, scopes, auto_create, required, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT (org_id) DO UPDATE SET issuer = excluded.issuer, client_id = excluded.client_id, client_secret = excluded.client_secret, name = excluded.name,
 		 scopes = excluded.scopes, auto_create = excluded.auto_create, required = excluded.required, updated_at = excluded.updated_at`,
-		[orgId, issuer.href.replace(/\/$/, ''), input.clientId, secret, input.name || 'SSO', input.scopes || 'openid email profile', input.autoCreate, input.required, now()]
+		[orgId, input.issuer.trim(), input.clientId, secret, input.name || 'SSO', input.scopes || 'openid email profile', input.autoCreate, input.required, now()]
 	);
 	discovered.delete(orgId);
 }
@@ -148,10 +150,19 @@ function configuration(s: SsoSettings): Promise<client.Configuration> {
 	if (hit?.key === key) return hit.config;
 	const issuer = new URL(s.issuer);
 	const options = issuer.protocol === 'http:' ? { execute: [client.allowInsecureRequests] } : undefined;
-	const pending = client.discovery(issuer, s.clientId, s.clientSecret || undefined, undefined, options).catch((err) => {
-		if (discovered.get(s.orgId)?.config === pending) discovered.delete(s.orgId);
-		throw err;
-	});
+	const discover = (url: URL) => client.discovery(url, s.clientId, s.clientSecret || undefined, undefined, options);
+	const pending = discover(issuer)
+		.catch((err) => {
+			// Only a trailing slash apart (issuers saved before it was kept): use the provider's.
+			const actual = (err as { cause?: { body?: { issuer?: unknown } } }).cause?.body?.issuer;
+			const bare = (v: string) => v.replace(/\/+$/, '');
+			if (typeof actual === 'string' && actual !== s.issuer && bare(actual) === bare(s.issuer)) return discover(new URL(actual));
+			throw err;
+		})
+		.catch((err) => {
+			if (discovered.get(s.orgId)?.config === pending) discovered.delete(s.orgId);
+			throw err;
+		});
 	discovered.set(s.orgId, { key, config: pending });
 	return pending;
 }

@@ -43,3 +43,31 @@ test('SSO discovery failures say what to change', async () => {
 	const mismatch = Object.assign(new Error('discovered metadata issuer does not match'), { code: 'OAUTH_JSON_ATTRIBUTE_COMPARISON_FAILED', cause: { body: { issuer: 'https://auth.acme.test/application/o/acm/' } } });
 	assert.match(discoveryProblem(mismatch, 'https://auth.acme.test/application/o/acm'), /calls itself https:\/\/auth\.acme\.test\/application\/o\/acm\/\./);
 });
+
+test('SSO keeps the issuer’s trailing slash (Authentik), and copes with one saved without it', async () => {
+	const { createServer } = await import('node:http');
+	const { ssoSettings, testSso } = await import('../src/lib/server/sso.ts');
+	let base = '';
+	// Authentik's issuer ends in a slash, and it serves discovery with or without one.
+	const server = createServer((req, res) => {
+		res.setHeader('content-type', 'application/json');
+		if (!req.url?.startsWith('/application/o/acm')) return void res.writeHead(404).end('{}');
+		res.end(JSON.stringify({ issuer: `${base}/application/o/acm/`, authorization_endpoint: `${base}/authorize`, token_endpoint: `${base}/token`, jwks_uri: `${base}/jwks` }));
+	});
+	await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+	base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+	const db = await openDb(process.env.TEST_DATABASE_URL ?? ':memory:');
+	setDb(db);
+	try {
+		const { org } = await setupOrg({ orgName: 'S', email: `s${Math.random().toString(36).slice(2, 8)}@slash.example`, name: 'S', password: 'password123' });
+		const save = (issuer: string) => saveSso(db, org.id, { issuer, clientId: 'c', name: 'Authentik', scopes: '', autoCreate: true, required: false });
+		await save(`${base}/application/o/acm/`);
+		const s = (await ssoSettings(db, org.id))!;
+		assert.equal(s.issuer, `${base}/application/o/acm/`);
+		assert.equal((await testSso(s)).issuer, `${base}/application/o/acm/`);
+		await save(`${base}/application/o/acm`);
+		assert.equal((await testSso((await ssoSettings(db, org.id))!)).issuer, `${base}/application/o/acm/`);
+	} finally {
+		server.close();
+	}
+});

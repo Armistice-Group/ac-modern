@@ -20,29 +20,38 @@ services:
       # ACM_SMTP_FROM: "ac·modern <access@example.com>"
       # Skip the setup wizard:
       # ACM_ADMIN_EMAIL: you@example.com
-      # ACM_ADMIN_PASSWORD: ${ACM_ADMIN_PASSWORD}
+      # ACM_ADMIN_PASSWORD: ${ACM_ADMIN_PASSWORD:?set ACM_ADMIN_PASSWORD in .env}
       # ACM_ORG_NAME: Acme
       # Otherwise a random key is generated at /data/secret.key — back it up with the database.
       # ACM_SECRET_KEY: change-me-to-a-long-random-string
       # Postgres instead of the built-in SQLite file (see the postgres service below):
-      # ACM_DATABASE_URL: postgres://acm:${POSTGRES_PASSWORD}@postgres:5432/acm
+      # ACM_DATABASE_URL: postgres://acm:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/acm
       # Behind a TLS reverse proxy:
       # PROTOCOL_HEADER: x-forwarded-proto
       # HOST_HEADER: x-forwarded-host
     volumes:
       - ac-modern-data:/data
+    # With Postgres, start it first:
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
 
   # postgres:
   #   image: postgres:18-alpine
   #   restart: unless-stopped
   #   environment:
   #     POSTGRES_USER: acm
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
   #     POSTGRES_DB: acm
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U acm -d acm"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 20
   #   volumes:
   #     # Postgres 18+ keeps its data under /var/lib/postgresql/<major>/.
   #     - ac-modern-pg:/var/lib/postgresql
 
 volumes:
   ac-modern-data:
-  # ac-modern-pg:
+  # ac-modern-pg:   # uncomment together with the postgres service

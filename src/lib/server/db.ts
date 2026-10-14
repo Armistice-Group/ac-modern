@@ -156,6 +156,7 @@ export async function openDb(url = config.databaseUrl): Promise<Db> {
 	let db: Db;
 	if (/^postgres(ql)?:\/\//.test(url)) {
 		db = await openPostgres(url);
+		await waitForPostgres(db);
 	} else {
 		const file = url.startsWith('sqlite:') ? url.slice('sqlite:'.length) : url || join(config.dataDir, 'ac-modern.db');
 		if (file !== ':memory:') mkdirSync(join(file, '..'), { recursive: true });
@@ -165,11 +166,40 @@ export async function openDb(url = config.databaseUrl): Promise<Db> {
 	return db;
 }
 
+/** Errors that mean "Postgres isn't up yet" (still starting, or its container not ready). */
+const NOT_READY = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', '57P03']);
+
+/**
+ * Waits for Postgres to accept connections (up to ACM_DATABASE_WAIT_SECONDS, default 60),
+ * so ac·modern can start alongside it without a startup order. Other errors (a wrong
+ * password, a missing database) fail at once.
+ */
+async function waitForPostgres(db: Db) {
+	const deadline = Date.now() + Number(process.env.ACM_DATABASE_WAIT_SECONDS || 60) * 1000;
+	for (let attempt = 1; ; attempt++) {
+		try {
+			await db.get('SELECT 1');
+			return;
+		} catch (err) {
+			const code = (err as { code?: string }).code ?? '';
+			if (!NOT_READY.has(code) || Date.now() > deadline) throw err;
+			if (attempt === 1) console.log(`[ac-modern] Waiting for Postgres (${code})…`);
+			await new Promise((r) => setTimeout(r, Math.min(500 * attempt, 3000)));
+		}
+	}
+}
+
 let shared: Promise<Db> | undefined;
 
-/** The app-wide database, opened and migrated on first use. */
+/**
+ * The app-wide database, opened and migrated on first use. A failed open isn't cached:
+ * the next call tries again, so a database that was briefly down doesn't need a restart.
+ */
 export function db(): Promise<Db> {
-	shared ??= openDb();
+	shared ??= openDb().catch((err) => {
+		shared = undefined;
+		throw err;
+	});
 	return shared;
 }
 

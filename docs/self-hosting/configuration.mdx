@@ -14,6 +14,7 @@ Everything is optional. A bare `docker compose up -d` runs a self-hosted install
 | `ACM_DATA_DIR` | `./data` (`/data` in Docker) | Where the SQLite database and generated secret key live |
 | `ACM_DATABASE_URL` | SQLite in the data folder | `postgres://…` for Postgres. `DATABASE_URL` also works. |
 | `ACM_DATABASE_POOL` | `10` | Postgres connection pool size |
+| `ACM_DATABASE_WAIT_SECONDS` | `60` | How long to wait at startup for Postgres to accept connections |
 | `ACM_SECRET_KEY` | generated `secret.key` | Encrypts stored secrets (SSO, integration and Slack tokens, webhook signing keys, the Slack channel URL) |
 | `ACM_PUBLIC_URL` | the request's address | Base URL for links in emails and Slack. `ORIGIN` is used if this isn't set. |
 | `PORT` | `3000` | Listening port |

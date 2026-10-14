@@ -10,7 +10,13 @@ SQLite (built into Node, no extra service) is fine for a self-hosted team. Use P
 ACM_DATABASE_URL=postgres://acm:secret@postgres:5432/acm
 ```
 
-`compose.yaml` has a commented `postgres` service to start from. ac·modern creates its tables on startup and applies new migrations on upgrade. The same SQL runs on both databases.
+`compose.yaml` has a commented `postgres` service to start from. Uncomment it, its `ac-modern-pg` volume and the `depends_on` block together, and put `POSTGRES_PASSWORD` in a `.env` file next to `compose.yaml`. ac·modern creates its tables on startup and applies new migrations on upgrade. The same SQL runs on both databases.
+
+If Postgres is still starting, ac·modern waits for it (up to `ACM_DATABASE_WAIT_SECONDS`, default 60), and if the database drops out later it reconnects on the next request, without a restart. A wrong password or a missing database fails straight away, with the error in the logs.
+
+<Note>
+  Postgres 18 images keep their data under `/var/lib/postgresql/18/…`, so mount the volume at `/var/lib/postgresql`, not `/var/lib/postgresql/data` as older guides say.
+</Note>
 
 <Note>
   Migrations run in one transaction under a Postgres advisory lock, so several instances starting together wait for each other instead of racing.

@@ -152,8 +152,8 @@
 				<div>
 					<label class="label" for="deact">When someone is deactivated in the IdP</label>
 					<select id="deact" class="input" bind:value={onDeactivate}>
-						<option value="offboard">Offboard: deactivate and open removals for all their access</option>
-						<option value="deactivate">Only deactivate their ac·modern account</option>
+						<option value="offboard">Offboard (remove all their access)</option>
+						<option value="deactivate">Only deactivate them here</option>
 					</select>
 				</div>
 				<div class="flex items-start justify-between gap-3">

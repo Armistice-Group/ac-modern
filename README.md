@@ -27,6 +27,7 @@ Small teams usually handle access in Slack DMs and a spreadsheet, or pay for a h
 |---|---|
 | ![Request](docs/screenshots/request.png) | ![Catalog](docs/screenshots/catalog-light.png) |
 | ![Review](docs/screenshots/review.png) | ![Access](docs/screenshots/access.png) |
+| ![Audit evidence](docs/screenshots/evidence.png) | ![Directory sync](docs/screenshots/settings-directory.png) |
 
 ## Audit evidence
 

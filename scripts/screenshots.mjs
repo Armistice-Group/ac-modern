@@ -44,7 +44,9 @@ const SHOTS = [
 	['access', '/access'],
 	['review', null],
 	['resource', null],
-	['people', '/people']
+	['people', '/people'],
+	['evidence', '/evidence?from=2026-01-01'],
+	['settings-directory', '/settings/directory']
 ];
 
 async function main() {

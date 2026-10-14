@@ -26,12 +26,15 @@ jobs:
       - name: Fix workspace permissions
         run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
       - uses: actions/checkout@v7
-      # pnpm version comes from "packageManager" in package.json.
-      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+      # The pnpm that package.json pins, installed into this job's temp dir: nothing global
+      # on the shared runner (pnpm/action-setup's self-installer trips over leftovers there).
+      - name: Install pnpm
+        run: |
+          npm install --silent --prefix "$RUNNER_TEMP/pnpm" "pnpm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
+          echo "$RUNNER_TEMP/pnpm/node_modules/.bin" >> "$GITHUB_PATH"
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm test
@@ -59,11 +62,15 @@ jobs:
       - name: Fix workspace permissions
         run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+      # The pnpm that package.json pins, installed into this job's temp dir: nothing global
+      # on the shared runner (pnpm/action-setup's self-installer trips over leftovers there).
+      - name: Install pnpm
+        run: |
+          npm install --silent --prefix "$RUNNER_TEMP/pnpm" "pnpm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
+          echo "$RUNNER_TEMP/pnpm/node_modules/.bin" >> "$GITHUB_PATH"
       - run: pnpm install --frozen-lockfile
       # The service's host port is only known at runtime, so the URL is set here.
       - run: pnpm test

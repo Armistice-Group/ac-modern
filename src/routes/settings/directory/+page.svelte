@@ -12,12 +12,19 @@
 	let { data }: PageProps = $props();
 	type Kind = 'scim' | 'google' | 'okta' | 'entra';
 	const KINDS: { kind: Kind; name: string; detail: string }[] = [
-		{ kind: 'scim', name: 'SCIM', detail: 'Okta, Entra ID, JumpCloud, OneLogin, Rippling push changes as they happen' },
+		{ kind: 'scim', name: 'SCIM', detail: 'Authentik, Okta, Entra ID, JumpCloud, OneLogin, Rippling push changes as they happen' },
 		{ kind: 'google', name: 'Google Workspace', detail: 'Pulled through the Admin SDK every 30 minutes' },
 		{ kind: 'okta', name: 'Okta API', detail: 'Pulled with an API token: no Lifecycle Management needed' },
 		{ kind: 'entra', name: 'Microsoft Entra ID', detail: 'Pulled through Microsoft Graph with an app registration' }
 	];
 
+	const SCIM_IDPS = [
+		{ key: 'authentik', name: 'Authentik' },
+		{ key: 'okta', name: 'Okta' },
+		{ key: 'entra', name: 'Entra ID' },
+		{ key: 'other', name: 'Others' }
+	] as const;
+	let scimIdp = $state<(typeof SCIM_IDPS)[number]['key']>('authentik');
 	let kind = $state<Kind>('scim');
 	let cfg = $state<Record<string, string>>({});
 	let onDeactivate = $state<'offboard' | 'deactivate'>('offboard');
@@ -114,9 +121,30 @@
 
 		<form class="mt-5 space-y-4" onsubmit={save}>
 			{#if kind === 'scim'}
-				<ol class="list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
-					<li>Okta: add a SCIM 2.0 app (header auth). Entra ID: Enterprise apps → New → non-gallery → Provisioning → Automatic. JumpCloud/OneLogin: a custom SCIM app.</li>
-					<li>Use the base URL and token below, push users and the groups you want here, and turn on deactivation.</li>
+				<div class="flex flex-wrap gap-1" role="tablist" aria-label="Identity provider">
+					{#each SCIM_IDPS as idp (idp.key)}
+						<button type="button" role="tab" aria-selected={scimIdp === idp.key} class="btn btn-sm {scimIdp === idp.key ? 'btn-secondary' : 'btn-ghost'}" onclick={() => (scimIdp = idp.key)}>{idp.name}</button>
+					{/each}
+				</div>
+				<ol class="list-decimal space-y-1.5 pl-5 text-xs text-muted-foreground">
+					{#if scimIdp === 'authentik'}
+						<li><strong class="text-foreground">Connect</strong> below, then <strong class="text-foreground">Generate token</strong>.</li>
+						<li>In Authentik: <strong class="text-foreground">Applications → Providers → Create → SCIM Provider</strong>. URL: the base URL below. Token: the SCIM token. To send only some groups, set a <em>Group filter</em>.</li>
+						<li><strong class="text-foreground">Applications →</strong> your ac·modern application <strong class="text-foreground">→ Edit → Backchannel providers</strong>: add the SCIM provider. Authentik pushes everyone straight away, then each change as it happens.</li>
+						<li>Titles and managers: Authentik has no fields for them. Keep them in user attributes and add a SCIM property mapping that sends <code class="font-mono">title</code> and the enterprise <code class="font-mono">manager</code>.</li>
+					{:else if scimIdp === 'okta'}
+						<li><strong class="text-foreground">Connect</strong> below, then <strong class="text-foreground">Generate token</strong>.</li>
+						<li>In Okta: create an app integration with <strong class="text-foreground">SCIM 2.0</strong> provisioning, using header authentication (Bearer). Base URL: below. Unique identifier: <code class="font-mono">userName</code>.</li>
+						<li>Turn on <em>Create users</em>, <em>Update user attributes</em> and <em>Deactivate users</em>, and use <strong class="text-foreground">Push Groups</strong> for the groups you want here.</li>
+					{:else if scimIdp === 'entra'}
+						<li><strong class="text-foreground">Connect</strong> below, then <strong class="text-foreground">Generate token</strong>.</li>
+						<li>In Entra ID: <strong class="text-foreground">Enterprise applications → New application → Create your own (non-gallery) → Provisioning → Automatic</strong>. Tenant URL: the base URL below. Secret token: the SCIM token.</li>
+						<li>Assign the users and groups to provision, and start provisioning.</li>
+					{:else}
+						<li><strong class="text-foreground">Connect</strong> below, then <strong class="text-foreground">Generate token</strong>.</li>
+						<li>Add a custom SCIM 2.0 application (JumpCloud, OneLogin, Rippling and others) with the base URL below and the token as a Bearer token.</li>
+						<li>Turn on user and group provisioning, including deactivation.</li>
+					{/if}
 				</ol>
 				<div>
 					<span class="label">SCIM base URL</span>

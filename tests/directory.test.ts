@@ -152,3 +152,47 @@ test('pulls: Google (JWT, pages, manager by email), Okta (Link pages), Microsoft
 	assert.equal((await w.member(`mo-${t}@acme.test`))?.manager_id, (await w.member(`max-${t}@acme.test`))!.user_id);
 	assert.ok(calls.some((c) => c.includes('transitiveMembers')));
 });
+
+test('SCIM (Authentik-style): username isn’t an email, updates are PUTs, groups are PATCHed, deletes remove', async () => {
+	const w = await world();
+	await saveSource(w.db, w.org.id, { kind: 'scim', config: {}, onDeactivate: 'offboard', createMembers: true });
+	const ENT = 'urn:ietf:params:scim:schemas:extension:enterprise:2.0:User';
+	// What Authentik's default user mapping sends, plus a custom title/manager mapping.
+	const authentikUser = (username: string, email: string, active: boolean, extra: Record<string, unknown> = {}) => ({
+		schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'],
+		userName: username,
+		name: { formatted: username.toUpperCase(), givenName: username, familyName: '' },
+		displayName: username.toUpperCase(),
+		active,
+		emails: [{ value: email, type: 'other', primary: true }],
+		externalId: `ak-${username}`,
+		...extra
+	});
+	const lead = await w.scim('POST', 'Users', authentikUser('lead', `lead-${w.tag}@acme.test`, true));
+	assert.equal(lead.status, 201);
+	const ann = await w.scim('POST', 'Users', authentikUser('ann', `ann-${w.tag}@acme.test`, true, { title: 'SRE', [ENT]: { manager: { value: `lead-${w.tag}@acme.test` } } }));
+	const annId = (ann.body as { id: string }).id;
+	const m = await w.member(`ann-${w.tag}@acme.test`);
+	assert.equal(m?.status, 'active', 'added under their email, not their username');
+	assert.equal(m?.title, 'SRE');
+	assert.equal(m?.manager_id, (await w.member(`lead-${w.tag}@acme.test`))!.user_id, 'manager given by email');
+
+	// Groups: created with members, then changed with PATCH add/remove.
+	const sre = await w.scim('POST', 'Groups', { schemas: ['urn:ietf:params:scim:schemas:core:2.0:Group'], displayName: 'sre', externalId: 'ak-sre', members: [] });
+	const sreId = (sre.body as { id: string }).id;
+	await addMapping(w.db, w.org.id, { groupId: sreId, target: 'access', resourceId: w.resId, roleId: w.roles[0].id });
+	await w.scim('PATCH', `Groups/${sreId}`, { schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'], Operations: [{ op: 'add', path: 'members', value: [{ value: annId }] }] });
+	assert.equal((await listGrants(w.db, w.org.id, { userId: m!.user_id })).length, 1);
+	await w.scim('PATCH', `Groups/${sreId}`, { schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'], Operations: [{ op: 'remove', path: 'members', value: [{ value: annId }] }] });
+	assert.equal((await listGrants(w.db, w.org.id, { userId: m!.user_id })).length, 0);
+
+	// Deactivated in Authentik: a full PUT with active false.
+	assert.equal((await w.scim('PUT', `Users/${annId}`, authentikUser('ann', `ann-${w.tag}@acme.test`, false))).status, 200);
+	assert.equal((await w.member(`ann-${w.tag}@acme.test`))?.status, 'deactivated');
+	await w.scim('PUT', `Users/${annId}`, authentikUser('ann', `ann-${w.tag}@acme.test`, true));
+	assert.equal((await w.member(`ann-${w.tag}@acme.test`))?.status, 'active');
+	// Deleted in Authentik.
+	const leadId = (lead.body as { id: string }).id;
+	assert.equal((await w.scim('DELETE', `Users/${leadId}`)).status, 204);
+	assert.equal((await w.member(`lead-${w.tag}@acme.test`))?.status, 'deactivated');
+});

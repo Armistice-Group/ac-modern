@@ -21,7 +21,7 @@ Set it up in **Settings → Directory sync**. One directory per organisation.
 
 <CardGroup cols={2}>
   <Card title="SCIM (push)" icon="arrow-down-to-line">
-    Okta, Entra ID, JumpCloud, OneLogin, Rippling and others push changes as they happen.
+    Authentik, Okta, Entra ID, JumpCloud, OneLogin, Rippling and others push changes as they happen.
   </Card>
   <Card title="Google Workspace (pull)" icon="mail" href="/integrations/google-workspace">
     Read through the Admin SDK with a service account.
@@ -44,6 +44,29 @@ Pulled sources sync every 30 minutes (`ACM_DIRECTORY_SYNC_MINUTES`) and on **Syn
   </Step>
   <Step title="Configure your IdP">
     <Tabs>
+      <Tab title="Authentik">
+        SCIM is in Authentik's free edition.
+
+        1. **Applications → Providers → Create → SCIM Provider.** URL: `https://<your ac·modern>/scim/v2`. Token: the SCIM token. To send only some groups, set a **Group filter**.
+        2. **Applications →** your ac·modern application **→ Edit → Backchannel providers:** add the SCIM provider. Authentik pushes all matching users and groups straight away, then each change as it happens. To resend everything, open the provider and click **Run sync again**.
+
+        Deactivating someone in Authentik sends `active: false`, and deleting them removes them; ac·modern treats both as leaving. ac·modern takes the address from the user's email, not their Authentik username.
+
+        Authentik has no title or manager fields. To send them, keep them in user attributes and add a SCIM property mapping (**Customization → Property Mappings → Create → SCIM Provider Mapping**) to the provider, alongside the default user mapping, for example:
+
+        ```python
+        return {
+            "title": request.user.attributes.get("title", ""),
+            "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
+                "manager": {"value": request.user.attributes.get("manager_email", "")},
+            },
+        }
+        ```
+
+        The manager can be their email or their SCIM id in ac·modern.
+
+        <Tip>If Authentik is also the source of truth for Google Workspace (Authentik Enterprise), sync ac·modern from Authentik, not Google, so both follow the same directory.</Tip>
+      </Tab>
       <Tab title="Okta">
         Create an app integration with SCIM 2.0 provisioning, using header authentication (Bearer token). Base URL: `https://<your ac·modern>/scim/v2`, unique identifier `userName`. Enable *Create users*, *Update user attributes* and *Deactivate users*. Use **Push Groups** for the groups you want to map.
       </Tab>

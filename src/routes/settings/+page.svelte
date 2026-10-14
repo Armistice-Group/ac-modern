@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { LoaderCircle, Send, CircleCheck, CircleAlert } from '@lucide/svelte';
-	import PageHeader from '#lib/components/PageHeader.svelte';
 	import Switch from '#lib/components/Switch.svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
 	import { toast } from '#lib/client/state.svelte.ts';
@@ -55,8 +54,6 @@
 </script>
 
 <svelte:head><title>Settings · ac·modern</title></svelte:head>
-
-<PageHeader title="Settings" description="How {data.name} works in ac·modern." />
 
 <div class="max-w-3xl space-y-6 px-8 pb-10">
 	<section class="card p-5">

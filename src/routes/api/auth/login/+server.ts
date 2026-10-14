@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { membershipsOf, userByEmail } from '#lib/server/accounts.ts';
 import { startSession, throttled } from '#lib/server/auth.ts';
 import { verifyPassword } from '#lib/server/crypto.ts';
+import { ssoSettings } from '#lib/server/sso.ts';
 import { db } from '#lib/server/db.ts';
 import { body, handler, HttpError, str } from '#lib/server/http.ts';
 
@@ -14,6 +15,14 @@ export const POST = handler(async (event) => {
 	const user = await userByEmail(d, email);
 	if (!user || !verifyPassword(password, user.password_hash)) throw new HttpError(401, 'Wrong email or password');
 	const orgs = await membershipsOf(d, user.id);
-	await startSession(event.cookies, user.id, orgs[0]?.orgId ?? null, event.locals.secure);
+	// Start in an org that accepts passwords; if none does, point them at SSO.
+	let start: string | null = orgs[0]?.orgId ?? null;
+	if (orgs.length) {
+		const open = [];
+		for (const m of orgs) if (m.role === 'owner' || !(await ssoSettings(d, m.orgId))?.required) open.push(m.orgId);
+		if (!open.length) throw new HttpError(403, `${orgs[0].orgName} signs in with single sign-on`, { sso: `/auth/oidc/start?org=${orgs[0].orgId}` });
+		start = open[0];
+	}
+	await startSession(event.cookies, user.id, start, event.locals.secure);
 	return json({ ok: true });
 });

@@ -19,6 +19,7 @@ Small teams usually handle access in Slack DMs and a spreadsheet, or pay for a h
 - **Record existing access.** Import what people already have, so reviews and offboarding cover it from day one.
 - **Audit log** of every request, decision, grant and setting change, exportable as CSV.
 - **Notifications** by email (SMTP) and to a Slack channel (incoming webhook).
+- **Single sign-on (OIDC)** per organisation: Okta, Entra ID, Google, JumpCloud, Authentik, Keycloak. Email domains are claimed per org (DNS-verified in the cloud), accounts are created on first sign-in, and SSO can be required, with owners keeping a password as a break-glass.
 
 | | |
 |---|---|

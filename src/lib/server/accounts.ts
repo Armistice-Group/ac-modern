@@ -190,12 +190,13 @@ export async function adminIds(db: Db, orgId: string): Promise<string[]> {
 
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export async function createSession(db: Db, userId: string, orgId: string | null): Promise<string> {
+export async function createSession(db: Db, userId: string, orgId: string | null, method: 'password' | 'sso' = 'password'): Promise<string> {
 	const token = randomToken();
-	await db.run('INSERT INTO sessions (id, user_id, org_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)', [
+	await db.run('INSERT INTO sessions (id, user_id, org_id, auth_method, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)', [
 		sha256(token),
 		userId,
 		orgId,
+		method,
 		now(),
 		new Date(Date.now() + SESSION_TTL_MS).toISOString()
 	]);
@@ -204,8 +205,8 @@ export async function createSession(db: Db, userId: string, orgId: string | null
 }
 
 export async function sessionByToken(db: Db, token: string) {
-	return db.get<{ id: string; user_id: string; org_id: string | null; email: string; name: string }>(
-		`SELECT s.id, s.user_id, s.org_id, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?`,
+	return db.get<{ id: string; user_id: string; org_id: string | null; auth_method: string; email: string; name: string }>(
+		`SELECT s.id, s.user_id, s.org_id, s.auth_method, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?`,
 		[sha256(token), now()]
 	);
 }

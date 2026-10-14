@@ -215,5 +215,38 @@ CREATE TABLE request_batches (
 
 CREATE INDEX requests_org_created ON requests(org_id, created_at);
 CREATE INDEX requests_batch ON requests(batch_id)
+`,
+	// Single sign-on, per organisation.
+	`
+CREATE TABLE org_sso (
+	org_id TEXT PRIMARY KEY REFERENCES orgs(id) ON DELETE CASCADE,
+	issuer TEXT NOT NULL,
+	client_id TEXT NOT NULL,
+	client_secret TEXT NOT NULL DEFAULT '',
+	name TEXT NOT NULL DEFAULT 'SSO',
+	scopes TEXT NOT NULL DEFAULT 'openid email profile',
+	auto_create INTEGER NOT NULL DEFAULT 1,
+	required INTEGER NOT NULL DEFAULT 0,
+	updated_at TEXT NOT NULL
+);
+
+CREATE TABLE org_domains (
+	domain TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	token TEXT NOT NULL,
+	verified_at TEXT,
+	created_at TEXT NOT NULL
+);
+CREATE INDEX org_domains_org ON org_domains(org_id);
+
+CREATE TABLE user_identities (
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	sub TEXT NOT NULL,
+	user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	created_at TEXT NOT NULL,
+	PRIMARY KEY (org_id, sub)
+);
+
+ALTER TABLE sessions ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'password'
 `
 ];

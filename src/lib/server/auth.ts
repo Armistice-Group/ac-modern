@@ -4,6 +4,7 @@ import { config, isCloud } from './config.ts';
 import { hashPassword } from './crypto.ts';
 import { db } from './db.ts';
 import { record } from './events.ts';
+import { ssoSettings } from './sso.ts';
 
 export const SESSION_COOKIE = 'acm_session';
 
@@ -45,6 +46,7 @@ export async function authenticate(cookies: Cookies, locals: App.Locals): Promis
 	locals.role = null;
 	locals.orgs = [];
 	locals.sessionId = null;
+	locals.ssoRequired = false;
 	const token = cookies.get(SESSION_COOKIE);
 	const s = token ? await sessionByToken(d, token) : undefined;
 	if (!s) {
@@ -60,12 +62,17 @@ export async function authenticate(cookies: Cookies, locals: App.Locals): Promis
 	if (orgId) {
 		locals.org = (await getOrg(d, orgId)) ?? null;
 		locals.role = locals.orgs.find((m) => m.orgId === orgId)?.role ?? null;
+		// Orgs that require SSO don't accept password sessions, except from owners (break-glass).
+		if (s.auth_method !== 'sso' && locals.role !== 'owner') {
+			const sso = await ssoSettings(d, orgId);
+			if (sso?.required) locals.ssoRequired = true;
+		}
 	}
 	return 'authenticated';
 }
 
-export async function startSession(cookies: Cookies, userId: string, orgId: string | null, secure: boolean) {
-	const token = await createSession(await db(), userId, orgId);
+export async function startSession(cookies: Cookies, userId: string, orgId: string | null, secure: boolean, method: 'password' | 'sso' = 'password') {
+	const token = await createSession(await db(), userId, orgId, method);
 	cookies.set(SESSION_COOKIE, token, {
 		path: '/',
 		httpOnly: true,

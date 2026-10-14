@@ -37,6 +37,7 @@
 	},
 	"dependencies": {
 		"nodemailer": "^10.1.0",
+		"openid-client": "^6.8.8",
 		"pg": "^8.23.1"
 	},
 	"packageManager": "pnpm@9.15.0",

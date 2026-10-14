@@ -9,7 +9,7 @@ export const init: ServerInit = () => {
 	startJobs();
 };
 
-const PUBLIC = ['/login', '/setup', '/signup', '/invite/', '/api/auth/', '/api/health'];
+const PUBLIC = ['/login', '/setup', '/signup', '/invite/', '/auth/oidc/', '/api/auth/', '/api/health'];
 /** Pages a signed-in user without an organisation can still open. */
 const NO_ORG_OK = ['/signup', '/account', '/api/account', '/api/orgs'];
 const ADMIN_PAGES = ['/resources/new', '/audit', '/settings', '/evidence'];
@@ -57,6 +57,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (!event.locals.org && !NO_ORG_OK.some((p) => pathname.startsWith(p))) {
 			if (isApi) return json({ message: 'You’re not a member of an organisation' }, { status: 403 });
 			redirect(303, isCloud() ? '/signup' : '/login?error=removed');
+		}
+		if (event.locals.ssoRequired && !NO_ORG_OK.some((p) => pathname.startsWith(p))) {
+			if (isApi) return json({ message: `${event.locals.org!.name} requires single sign-on` }, { status: 403 });
+			redirect(303, `/auth/oidc/start?org=${event.locals.org!.id}&next=${encodeURIComponent(pathname + event.url.search)}`);
 		}
 		const admin = event.locals.role === 'owner' || event.locals.role === 'admin';
 		if (!admin && !isApi && (ADMIN_EXACT.includes(pathname) || ADMIN_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`)))) redirect(303, '/');

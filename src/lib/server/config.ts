@@ -29,6 +29,18 @@ export const config = {
 	/** Cloud mode: who may create a new organisation from /signup (empty = anyone). */
 	signupAllow: list(env.ACM_SIGNUP_ALLOW),
 	smtp: env.ACM_SMTP_URL ? { url: env.ACM_SMTP_URL, from: env.ACM_SMTP_FROM || 'ac·modern <no-reply@localhost>' } : null,
+	/** Self-hosted: SSO from the environment (overrides the Settings page). */
+	oidc: env.ACM_OIDC_ISSUER
+		? {
+				issuer: env.ACM_OIDC_ISSUER,
+				clientId: env.ACM_OIDC_CLIENT_ID || '',
+				clientSecret: env.ACM_OIDC_CLIENT_SECRET || '',
+				name: env.ACM_OIDC_NAME || 'SSO',
+				scopes: env.ACM_OIDC_SCOPES || 'openid email profile',
+				domains: list(env.ACM_OIDC_DOMAINS),
+				required: env.ACM_OIDC_REQUIRED === 'true'
+			}
+		: null,
 	/** How often expiry and reminder jobs run. */
 	jobIntervalMs: Number(env.ACM_JOB_INTERVAL_SECONDS || 60) * 1000
 };

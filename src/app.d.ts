@@ -10,6 +10,8 @@ declare global {
 			role: Role | null;
 			orgs: Membership[];
 			sessionId: string | null;
+			/** Signed in with a password to an org that requires SSO: send them through SSO first. */
+			ssoRequired: boolean;
 			/** The URL origin the browser used (for links in notifications). */
 			origin: string;
 			secure: boolean;

@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { parseServiceAccountKey } from '#lib/google.ts';
 import { db } from '#lib/server/db.ts';
 import { getSource } from '#lib/server/directory.ts';
 import { record } from '#lib/server/events.ts';
@@ -33,6 +34,10 @@ export const PUT = handler(async (event) => {
 			case 'google':
 				config = { serviceAccountJson: secret('serviceAccountJson'), adminEmail: str(b, 'adminEmail', { required: true, max: 200 }) };
 				if (!config.serviceAccountJson) throw badRequest('Paste the service account’s JSON key');
+				{
+					const key = parseServiceAccountKey(config.serviceAccountJson);
+					if ('error' in key) throw badRequest(key.error);
+				}
 				result = await (await import('#lib/server/idp/google.ts')).testGoogle(config as never);
 				break;
 			case 'okta':
@@ -54,7 +59,7 @@ export const PUT = handler(async (event) => {
 		}
 	} catch (err) {
 		if (err instanceof HttpError) throw err;
-		throw new HttpError(502, `${INTEGRATIONS[kind].name} didn’t accept that: ${(err as Error).message}`);
+		throw new HttpError(422, `${INTEGRATIONS[kind].name} didn’t accept that: ${(err as Error).message}`);
 	}
 	await saveIntegration(d, c.org.id, kind, config);
 	await record(d, { orgId: c.org.id, actorId: c.user.id, action: 'settings.updated', subject: INTEGRATIONS[kind].name, summary: `Connected ${INTEGRATIONS[kind].name}` });

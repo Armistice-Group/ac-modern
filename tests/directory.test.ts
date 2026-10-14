@@ -125,7 +125,7 @@ test('pulls: Google (JWT, pages, manager by email), Okta (Link pages), Microsoft
 		return new Response('not found', { status: 404 });
 	};
 
-	await saveSource(w.db, w.org.id, { kind: 'google', config: { serviceAccountJson: JSON.stringify({ client_email: 'sa@x.iam', private_key: pem }), adminEmail: 'admin@acme.test' }, onDeactivate: 'offboard', createMembers: true });
+	await saveSource(w.db, w.org.id, { kind: 'google', config: { serviceAccountJson: JSON.stringify({ type: 'service_account', client_email: 'sa@x.iam', private_key: pem }), adminEmail: 'admin@acme.test' }, onDeactivate: 'offboard', createMembers: true });
 	const g = await syncDirectory(w.db, w.org.id, effects(), fake);
 	assert.equal(g.created, 2);
 	assert.equal((await w.member(`ann-${t}@acme.test`))?.manager_id, (await w.member(`bob-${t}@acme.test`))!.user_id);

@@ -14,6 +14,6 @@ export const POST = handler(async (event) => {
 		return json(result);
 	} catch (err) {
 		if (err instanceof HttpError) throw err;
-		throw new HttpError(502, (err as Error).message);
+		throw new HttpError(422, (err as Error).message);
 	}
 });

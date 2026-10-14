@@ -31,3 +31,15 @@ test('cloud: domains count only once verified by DNS, and only one org can claim
 		(config as { mode: string }).mode = mode;
 	}
 });
+
+test('SSO discovery failures say what to change', async () => {
+	const { discoveryProblem } = await import('../src/lib/server/sso.ts');
+	const fetchFailed = (code: string) => Object.assign(new TypeError('fetch failed'), { cause: Object.assign(new Error(code), { code }) });
+	assert.match(discoveryProblem(fetchFailed('ENOTFOUND'), 'https://auth.acme.test/application/o/acm/'), /can’t look up auth\.acme\.test/);
+	assert.match(discoveryProblem(fetchFailed('ECONNREFUSED'), 'https://auth.acme.test'), /can’t connect.*ECONNREFUSED/);
+	assert.match(discoveryProblem(fetchFailed('SELF_SIGNED_CERT_IN_CHAIN'), 'https://auth.acme.test'), /NODE_EXTRA_CA_CERTS/);
+	const notFound = Object.assign(new Error('unexpected HTTP response status code'), { code: 'OAUTH_RESPONSE_IS_NOT_CONFORM', cause: new Response('', { status: 404 }) });
+	assert.match(discoveryProblem(notFound, 'https://auth.acme.test/'), /https:\/\/auth\.acme\.test\/\.well-known\/openid-configuration answered HTTP 404/);
+	const mismatch = Object.assign(new Error('discovered metadata issuer does not match'), { code: 'OAUTH_JSON_ATTRIBUTE_COMPARISON_FAILED', cause: { body: { issuer: 'https://auth.acme.test/application/o/acm/' } } });
+	assert.match(discoveryProblem(mismatch, 'https://auth.acme.test/application/o/acm'), /calls itself https:\/\/auth\.acme\.test\/application\/o\/acm\/\./);
+});

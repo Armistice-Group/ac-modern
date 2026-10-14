@@ -23,7 +23,7 @@ Set it up in **Settings → Directory sync**. One directory per organisation.
   <Card title="SCIM (push)" icon="arrow-down-to-line">
     Okta, Entra ID, JumpCloud, OneLogin, Rippling and others push changes as they happen.
   </Card>
-  <Card title="Google Workspace (pull)" icon="mail">
+  <Card title="Google Workspace (pull)" icon="mail" href="/integrations/google-workspace">
     Read through the Admin SDK with a service account.
   </Card>
   <Card title="Okta API (pull)" icon="shield">
@@ -61,14 +61,11 @@ The endpoints are documented in the [SCIM reference](/api-reference/scim). Manag
 
 ## Google Workspace
 
-1. In Google Cloud, create a service account and a JSON key, and note its client ID.
-2. In the Admin console, **Security → API controls → Domain-wide delegation**, add that client ID with these scopes:
-   ```
-   https://www.googleapis.com/auth/admin.directory.user.readonly
-   https://www.googleapis.com/auth/admin.directory.group.readonly
-   https://www.googleapis.com/auth/admin.directory.group.member.readonly
-   ```
-3. Paste the JSON key and the email of an admin for the service account to act as.
+ac·modern reads your users and groups through a Google Cloud service account with read-only, domain-wide delegated access. Setup takes about 10 minutes, and **Settings → Directory sync** walks you through it, with the client ID and scopes ready to copy.
+
+<Card title="Set up Google Workspace" icon="mail" href="/integrations/google-workspace">
+  Step by step, with exactly where to click and how to fix common errors.
+</Card>
 
 Suspended and archived users count as inactive. Managers come from the user's *manager* relation.
 

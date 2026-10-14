@@ -17,6 +17,6 @@ export const GET = handler(async (event) => {
 		if (kind === 'authentik') return json(await (await import('#lib/server/idp/authentik.ts')).authentikTargets(cfg as never));
 		return json(await (await import('#lib/server/idp/entra.ts')).entraTargets(cfg as never));
 	} catch (err) {
-		throw new HttpError(502, (err as Error).message);
+		throw new HttpError(422, (err as Error).message);
 	}
 });

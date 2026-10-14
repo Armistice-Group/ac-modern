@@ -62,7 +62,7 @@ export async function stripe<T = Record<string, unknown>>(method: 'GET' | 'POST'
 		signal: AbortSignal.timeout(20_000)
 	});
 	const data = (await res.json().catch(() => ({}))) as { error?: { message: string } } & T;
-	if (!res.ok) throw new HttpError(502, `Stripe: ${data.error?.message ?? res.status}`);
+	if (!res.ok) throw new HttpError(422, `Stripe: ${data.error?.message ?? res.status}`);
 	return data;
 }
 

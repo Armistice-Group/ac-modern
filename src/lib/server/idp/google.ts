@@ -1,4 +1,5 @@
 import { createSign } from 'node:crypto';
+import { GOOGLE_DIRECTORY_SCOPES, GOOGLE_PROVISIONING_SCOPES, googleHint, parseServiceAccountKey } from '#lib/google.ts';
 import type { DirectoryGroup, DirectoryUser } from '../directory.ts';
 import { type Fetch, jsonOrThrow, ProviderError } from './http.ts';
 
@@ -12,22 +13,29 @@ export interface GoogleConfig {
 	adminEmail: string;
 }
 
-export const DIRECTORY_SCOPES = [
-	'https://www.googleapis.com/auth/admin.directory.user.readonly',
-	'https://www.googleapis.com/auth/admin.directory.group.readonly',
-	'https://www.googleapis.com/auth/admin.directory.group.member.readonly'
-];
-export const PROVISIONING_SCOPES = ['https://www.googleapis.com/auth/admin.directory.group.member', 'https://www.googleapis.com/auth/admin.directory.user'];
+const DIRECTORY_SCOPES = GOOGLE_DIRECTORY_SCOPES;
+const PROVISIONING_SCOPES = GOOGLE_PROVISIONING_SCOPES;
 
 const b64url = (v: string | Buffer) => Buffer.from(v).toString('base64url');
 
-export async function googleToken(cfg: GoogleConfig, scopes: string[], f: Fetch = fetch): Promise<string> {
-	let sa: { client_email: string; private_key: string; token_uri?: string };
+/** Like jsonOrThrow, with the setup step that fixes the error appended when we know it. */
+async function googleJson<T>(res: Response, what: string, cfg: GoogleConfig): Promise<T> {
 	try {
-		sa = JSON.parse(cfg.serviceAccountJson);
-	} catch {
-		throw new ProviderError('The service account key isn’t valid JSON');
+		return await jsonOrThrow<T>(res, what);
+	} catch (err) {
+		if (!(err instanceof ProviderError)) throw err;
+		const key = parseServiceAccountKey(cfg.serviceAccountJson);
+		const hint = googleHint(err.message, 'clientId' in key ? key.clientId : '');
+		throw hint ? new ProviderError(`${hint} (Google said: ${err.message})`) : err;
 	}
+}
+
+export async function googleToken(cfg: GoogleConfig, scopes: string[], f: Fetch = fetch): Promise<string> {
+	const key = parseServiceAccountKey(cfg.serviceAccountJson);
+	if ('error' in key) throw new ProviderError(key.error);
+	if (cfg.adminEmail.trim().toLowerCase() === key.clientEmail.toLowerCase())
+		throw new ProviderError('The admin to act as must be a Workspace admin’s own email, not the service account’s.');
+	const sa = { ...(JSON.parse(cfg.serviceAccountJson) as { token_uri?: string }), client_email: key.clientEmail, private_key: key.privateKey };
 	const aud = sa.token_uri ?? 'https://oauth2.googleapis.com/token';
 	const iat = Math.floor(Date.now() / 1000);
 	const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
@@ -38,19 +46,19 @@ export async function googleToken(cfg: GoogleConfig, scopes: string[], f: Fetch 
 		headers: { 'content-type': 'application/x-www-form-urlencoded' },
 		body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${header}.${claims}.${signature}` })
 	});
-	return (await jsonOrThrow<{ access_token: string }>(res, 'Google sign-in')).access_token;
+	return (await googleJson<{ access_token: string }>(res, 'Google sign-in', cfg)).access_token;
 }
 
 const API = 'https://admin.googleapis.com/admin/directory/v1';
 
-async function pages<T>(f: Fetch, token: string, url: string, key: string): Promise<T[]> {
+async function pages<T>(cfg: GoogleConfig, f: Fetch, token: string, url: string, key: string): Promise<T[]> {
 	const out: T[] = [];
 	let next: string | undefined;
 	do {
 		const u = new URL(url);
 		if (next) u.searchParams.set('pageToken', next);
 		const res = await f(u, { headers: { authorization: `Bearer ${token}` } });
-		const body = await jsonOrThrow<Record<string, unknown> & { nextPageToken?: string }>(res, `Google ${u.pathname}`);
+		const body = await googleJson<Record<string, unknown> & { nextPageToken?: string }>(res, `Google ${u.pathname}`, cfg);
 		out.push(...((body[key] as T[]) ?? []));
 		next = body.nextPageToken;
 	} while (next);
@@ -69,7 +77,7 @@ interface GUser {
 
 export async function pullGoogle(cfg: GoogleConfig, f: Fetch = fetch): Promise<{ users: DirectoryUser[]; groups: DirectoryGroup[] }> {
 	const token = await googleToken(cfg, DIRECTORY_SCOPES, f);
-	const gusers = await pages<GUser>(f, token, `${API}/users?customer=my_customer&maxResults=500&projection=full`, 'users');
+	const gusers = await pages<GUser>(cfg, f, token, `${API}/users?customer=my_customer&maxResults=500&projection=full`, 'users');
 	const users: DirectoryUser[] = gusers.map((u) => ({
 		id: u.id,
 		email: u.primaryEmail,
@@ -78,10 +86,10 @@ export async function pullGoogle(cfg: GoogleConfig, f: Fetch = fetch): Promise<{
 		managerRef: u.relations?.find((r) => r.type === 'manager')?.value ?? '',
 		active: !u.suspended && !u.archived
 	}));
-	const ggroups = await pages<{ id: string; email: string; name: string }>(f, token, `${API}/groups?customer=my_customer&maxResults=200`, 'groups');
+	const ggroups = await pages<{ id: string; email: string; name: string }>(cfg, f, token, `${API}/groups?customer=my_customer&maxResults=200`, 'groups');
 	const groups: DirectoryGroup[] = [];
 	for (const g of ggroups) {
-		const members = await pages<{ id: string; type: string }>(f, token, `${API}/groups/${encodeURIComponent(g.id)}/members?maxResults=200&includeDerivedMembership=true`, 'members');
+		const members = await pages<{ id: string; type: string }>(cfg, f, token, `${API}/groups/${encodeURIComponent(g.id)}/members?maxResults=200&includeDerivedMembership=true`, 'members');
 		groups.push({ id: g.id, externalId: g.email, name: g.name || g.email, memberIds: members.filter((m) => m.type === 'USER').map((m) => m.id) });
 	}
 	return { users, groups };
@@ -98,7 +106,7 @@ async function call(f: Fetch, token: string, method: string, url: string, body?:
 export async function testGoogle(cfg: GoogleConfig, f: Fetch = fetch) {
 	const token = await googleToken(cfg, PROVISIONING_SCOPES, f);
 	const res = await call(f, token, 'GET', `${API}/users/${encodeURIComponent(cfg.adminEmail)}`);
-	const me = await jsonOrThrow<{ primaryEmail: string; isAdmin?: boolean }>(res, 'Google admin');
+	const me = await googleJson<{ primaryEmail: string; isAdmin?: boolean }>(res, 'Google admin', cfg);
 	return { as: me.primaryEmail };
 }
 
@@ -107,13 +115,13 @@ export async function googleGrant(cfg: GoogleConfig, level: GoogleLevel, email: 
 	if (level.type === 'google_account') {
 		const res = await call(f, token, 'PUT', `${API}/users/${encodeURIComponent(email)}`, { suspended: false });
 		if (res.status === 404) throw new ProviderError(`${email} doesn’t have a Google Workspace account yet; create it in the Admin console, then mark this done`);
-		await jsonOrThrow(res, 'Google account');
+		await googleJson(res, 'Google account', cfg);
 		return `Google Workspace: ${email} is active`;
 	}
 	const res = await call(f, token, 'POST', `${API}/groups/${encodeURIComponent(level.group)}/members`, { email, role: level.role });
 	if (res.status === 409) {
-		await jsonOrThrow(await call(f, token, 'PATCH', `${API}/groups/${encodeURIComponent(level.group)}/members/${encodeURIComponent(email)}`, { role: level.role }), 'Google group');
-	} else await jsonOrThrow(res, 'Google group');
+		await googleJson(await call(f, token, 'PATCH', `${API}/groups/${encodeURIComponent(level.group)}/members/${encodeURIComponent(email)}`, { role: level.role }), 'Google group', cfg);
+	} else await googleJson(res, 'Google group', cfg);
 	return `Google Workspace: ${email} added to ${level.group} as ${level.role.toLowerCase()}`;
 }
 
@@ -121,10 +129,10 @@ export async function googleRevoke(cfg: GoogleConfig, level: GoogleLevel, email:
 	const token = await googleToken(cfg, PROVISIONING_SCOPES, f);
 	if (level.type === 'google_account') {
 		const res = await call(f, token, 'PUT', `${API}/users/${encodeURIComponent(email)}`, { suspended: true });
-		if (res.status !== 404) await jsonOrThrow(res, 'Google account');
+		if (res.status !== 404) await googleJson(res, 'Google account', cfg);
 		return `Google Workspace: ${email} suspended`;
 	}
 	const res = await call(f, token, 'DELETE', `${API}/groups/${encodeURIComponent(level.group)}/members/${encodeURIComponent(email)}`);
-	if (res.status !== 404 && !res.ok) await jsonOrThrow(res, 'Google group');
+	if (res.status !== 404 && !res.ok) await googleJson(res, 'Google group', cfg);
 	return `Google Workspace: ${email} removed from ${level.group}`;
 }

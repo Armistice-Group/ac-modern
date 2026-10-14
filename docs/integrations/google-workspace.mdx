@@ -1,33 +1,148 @@
 ---
 title: Google Workspace
-description: Add and remove group members, and suspend accounts.
+description: Sync people and groups from Google Workspace, and add or remove group members when access is approved.
 icon: mail
 ---
 
-Google groups usually stand for more than a mailing list: shared drives, apps assigned to groups, and SAML apps that sign in with Google all follow group membership. Granting a group grants all of that.
+ac·modern uses Google Workspace in two ways. You can use either or both:
 
-## Connect
+| | What it does | Where | Access it needs |
+|---|---|---|---|
+| **Directory sync** | Adds people with their title and manager, offboards people you suspend, and reads groups | **Settings → Directory sync** | Read-only |
+| **Provisioning** | Adds and removes group members, and suspends and unsuspends accounts, when requests are approved or removed | **Settings → Integrations** | Read-write |
 
-<Frame>
-  <img src="/screenshots/settings-integrations.png" alt="Settings → Integrations" />
-</Frame>
+Both connect the same way: a **Google Cloud service account** that you allow, in the Google Admin console, to call the Admin SDK on behalf of one of your admins (*domain-wide delegation*). Setup takes about 10 minutes.
 
-**Settings → Integrations → Google Workspace.** You need a service account with domain-wide delegation for:
+<Info>
+  You need to be a **super admin** in Google Workspace to authorise the service account (step 5), and able to create a project in Google Cloud. The Cloud project can be any project in your organisation; it costs nothing.
+</Info>
 
-```
-https://www.googleapis.com/auth/admin.directory.group.member
-https://www.googleapis.com/auth/admin.directory.user
-```
+## Set up the service account
 
-Paste its JSON key and the email of an admin to act as. It can be the same service account as [directory sync](/identity/directory-sync#google-workspace), with these scopes added.
+<Steps>
+  <Step title="Turn on the Admin SDK API">
+    Open the [Admin SDK API](https://console.cloud.google.com/apis/library/admin.googleapis.com) page in the Google Cloud console. Pick a project from the menu at the top (or create one, for example *ac-modern*), then click **Enable**.
 
-## Map access levels
+    <Note>Sign in to Google Cloud with your Workspace account, so the project belongs to your organisation.</Note>
+  </Step>
+
+  <Step title="Create a service account">
+    In the same project, go to [IAM & Admin → Service accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) and click **Create service account**.
+
+    - **Name:** anything, for example *ac-modern*.
+    - **Permissions** and **Principals with access:** skip both. The service account needs no roles in the project; its access comes from the Admin console in step 4.
+
+    Click **Done**.
+  </Step>
+
+  <Step title="Create a JSON key">
+    Click the new service account, open the **Keys** tab, then **Add key → Create new key → JSON → Create**. A `.json` file downloads.
+
+    Keep it safe: it's the service account's password. ac·modern stores it encrypted, and you can delete the downloaded file once it's connected.
+
+    <Accordion title="“Service account key creation is disabled”">
+      Your Google Cloud organisation enforces the policy `iam.disableServiceAccountKeyCreation` (on by default for organisations created since 2024). Someone with the **Organization Policy Administrator** role can turn it off for this project only: **IAM & Admin → Organization policies → Disable service account key creation → Manage policy → Override parent's policy → Not enforced**. Then create the key, and turn the policy back on afterwards if you like: existing keys keep working.
+    </Accordion>
+  </Step>
+
+  <Step title="Paste the key in ac·modern">
+    Open **Settings → Directory sync → Google Workspace** (or **Settings → Integrations → Google Workspace** for provisioning) and paste the whole file into **JSON key**.
+
+    ac·modern checks it's a service account key and shows the key's **Client ID** (a long number, the `client_id` in the file) and the exact **OAuth scopes** to authorise, each with a **Copy** button. You'll need both in the next step.
+  </Step>
+
+  <Step title="Authorise it in the Google Admin console">
+    As a super admin, open [Security → Access and data control → API controls → Manage domain-wide delegation](https://admin.google.com/ac/owl/domainwidedelegation) and click **Add new**.
+
+    - **Client ID:** the number from the previous step.
+    - **OAuth scopes:** the list from ac·modern, comma-separated. They are:
+
+    <Tabs>
+      <Tab title="Directory sync">
+        ```
+        https://www.googleapis.com/auth/admin.directory.user.readonly,
+        https://www.googleapis.com/auth/admin.directory.group.readonly,
+        https://www.googleapis.com/auth/admin.directory.group.member.readonly
+        ```
+      </Tab>
+      <Tab title="Provisioning">
+        ```
+        https://www.googleapis.com/auth/admin.directory.group.member,
+        https://www.googleapis.com/auth/admin.directory.user
+        ```
+      </Tab>
+      <Tab title="Both, one key">
+        ```
+        https://www.googleapis.com/auth/admin.directory.user.readonly,
+        https://www.googleapis.com/auth/admin.directory.group.readonly,
+        https://www.googleapis.com/auth/admin.directory.group.member.readonly,
+        https://www.googleapis.com/auth/admin.directory.group.member,
+        https://www.googleapis.com/auth/admin.directory.user
+        ```
+      </Tab>
+    </Tabs>
+
+    Click **Authorize**. It usually works within a few minutes, though Google says it can take up to 24 hours.
+
+    <Warning>
+      Each client ID has **one** entry, and saving an entry replaces its scopes. If you use the same key for both directory sync and provisioning, **edit** the existing entry and enter all five scopes; don't add a second entry with only the new ones.
+    </Warning>
+  </Step>
+
+  <Step title="Choose the admin it acts as">
+    Back in ac·modern, enter **Admin to act as**: the email of a super admin, for example yours.
+
+    Google only lets a service account call the Admin SDK *on behalf of* an admin. ac·modern can only do what both that admin and the scopes above allow. Use a person's real primary address, not a group, an alias or the service account's own address.
+
+    <Tip>
+      If you'd rather not use a super admin, create a custom admin role with **Admin API privileges → Users → Read** and **Groups → Read** (directory sync), plus **Users → Update** and **Groups** (all) for provisioning, and assign it to a dedicated account.
+    </Tip>
+  </Step>
+
+  <Step title="Connect">
+    Click **Save** (directory sync runs a first sync straight away) or **Connect** (provisioning checks it can read the admin's account). If anything is wrong, the error names the step to fix; see [Troubleshooting](#troubleshooting).
+  </Step>
+</Steps>
+
+## Directory sync
+
+Once connected, ac·modern pulls from Google every 30 minutes (`ACM_DIRECTORY_SYNC_MINUTES`) and when you click **Sync now**:
+
+- **People:** everyone in the Workspace, with their name, primary job title (*Employee information → Job title*) and manager (*Employee information → Manager*, stored by Google as a *manager* relation).
+- **Inactive:** suspended and archived users. What happens to them is set by **When someone is deactivated**; see [Directory sync](/identity/directory-sync#when-someone-is-deactivated).
+- **Groups:** every group, with members including those inherited through nested groups. Map groups to ac·modern admins or access levels under **Groups**; see [Group mappings](/identity/directory-sync#group-mappings).
+
+## Provisioning
+
+Connect it under **Settings → Integrations → Google Workspace**. If directory sync already uses Google, you can leave the key blank to reuse its key; add the provisioning scopes to its delegation entry first (the **Both, one key** list).
+
+Then, on a resource, set **Set up by** to *Google Workspace* and map each access level:
 
 | Option | On grant | On removal |
 |---|---|---|
 | **Group** (`eng@acme.com`, as member, manager or owner) | Added to the group, or role updated | Removed from the group |
 | **The account itself** | Account unsuspended | Account suspended |
 
+Google groups usually stand for more than a mailing list: shared drives, apps assigned to groups, and SAML apps that sign in with Google all follow group membership. Granting a group grants all of that.
+
 <Note>
   *The account itself* doesn't create accounts. If the person has no Google account yet, the request goes to the fulfillers to create it, then **Mark done**.
 </Note>
+
+## Troubleshooting
+
+ac·modern recognises Google's common errors and says which step to fix. The original message from Google follows in brackets.
+
+| Error | Cause and fix |
+|---|---|
+| `unauthorized_client` · *Client is unauthorized to retrieve access tokens…* | Step 5: the client ID isn't in domain-wide delegation, or its entry is missing one of the scopes. Check the number matches the key's `client_id` and that every scope is listed. New entries can take a few minutes. |
+| *Admin SDK API has not been used in project … or it is disabled* | Step 1: enable the Admin SDK API in the project the service account belongs to, then wait a minute. |
+| `invalid_grant` · *Invalid email or User ID* | Step 6: the admin to act as isn't a user in your Workspace. Use their primary address, not an alias or group. |
+| *Not Authorized to access this resource/api* | Step 6: the admin to act as isn't an admin, or their role lacks the privileges. |
+| `invalid_grant` · *Invalid JWT Signature* | The key was deleted in Google Cloud. Create a new key (step 3) and paste it. |
+| `invalid_grant` · *Token must be a short-lived token* | The server's clock is wrong. Turn on NTP. |
+| *That's an OAuth client, not a service account key* | You downloaded an OAuth client from **APIs & Services → Credentials**. Use a key from the service account's **Keys** tab (step 3). |
+
+## Removing access
+
+To disconnect, click **Disconnect** in ac·modern, then in Google remove the client ID under **Manage domain-wide delegation** and delete the key (or the whole service account) in Google Cloud.

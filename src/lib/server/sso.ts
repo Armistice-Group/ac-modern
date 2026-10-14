@@ -156,11 +156,39 @@ function configuration(s: SsoSettings): Promise<client.Configuration> {
 	return pending;
 }
 
-/** Checks discovery works (Settings → Test). */
+/** Checks discovery works (Settings → Test). Throws an error that says what to change. */
 export async function testSso(s: SsoSettings) {
 	discovered.delete(s.orgId);
-	const cfg = await configuration(s);
-	return { issuer: cfg.serverMetadata().issuer };
+	try {
+		const cfg = await configuration(s);
+		return { issuer: cfg.serverMetadata().issuer };
+	} catch (err) {
+		throw new Error(discoveryProblem(err, s.issuer));
+	}
+}
+
+const CERT_ERRORS = ['DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_ISSUER_CERT', 'CERT_HAS_EXPIRED', 'ERR_TLS_CERT_ALTNAME_INVALID'];
+
+/** Why OIDC discovery failed, in terms of what to change. */
+export function discoveryProblem(err: unknown, issuer: string): string {
+	const e = err as { code?: string; message?: string; cause?: unknown };
+	const cause = e.cause as { code?: string; status?: number; url?: string; body?: { issuer?: unknown } } | undefined;
+	let host = issuer;
+	try {
+		host = new URL(issuer).host;
+	} catch {}
+	const wellKnown = `${issuer.replace(/\/+$/, '')}/.well-known/openid-configuration`;
+	if (e.code === 'OAUTH_JSON_ATTRIBUTE_COMPARISON_FAILED' && typeof cause?.body?.issuer === 'string')
+		return `The provider calls itself ${cause.body.issuer}. Set the issuer URL to exactly that, including any trailing slash.`;
+	if (cause instanceof Response || typeof cause?.status === 'number')
+		return `${cause?.url || wellKnown} answered HTTP ${cause?.status}, not OpenID Connect settings. Check the issuer URL: for Authentik it ends in /application/o/<app slug>/, for Entra ID it’s https://login.microsoftonline.com/<tenant id>/v2.0, for Google https://accounts.google.com.`;
+	if (cause?.code === 'ENOTFOUND' || cause?.code === 'EAI_AGAIN')
+		return `The ac·modern server can’t look up ${host}. Check the issuer URL, and that DNS inside the container resolves it.`;
+	if (cause?.code && ['ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'EHOSTUNREACH', 'UND_ERR_CONNECT_TIMEOUT'].includes(cause.code))
+		return `The ac·modern server can’t connect to ${host} (${cause.code}). Check that the container can reach it: a firewall, or a hostname that only works outside the container, are the usual causes.`;
+	if (cause?.code && CERT_ERRORS.includes(cause.code))
+		return `${host}’s TLS certificate isn’t trusted by the ac·modern server (${cause.code}). If your own CA signed it, mount the CA certificate into the container and set NODE_EXTRA_CA_CERTS to its path.`;
+	return `Discovery failed at ${wellKnown}: ${e.message ?? String(err)}`;
 }
 
 export const redirectUri = (origin: string) => `${origin}/auth/oidc/callback`;
@@ -168,7 +196,9 @@ export const redirectUri = (origin: string) => `${origin}/auth/oidc/callback`;
 export async function beginLogin(db: Db, cookies: Cookies, orgId: string, origin: string, next: string, secure: boolean, loginHint?: string): Promise<URL> {
 	const s = await ssoSettings(db, orgId);
 	if (!s) throw badRequest('Single sign-on isn’t set up for this organisation');
-	const cfg = await configuration(s);
+	const cfg = await configuration(s).catch((err) => {
+		throw new Error(discoveryProblem(err, s.issuer));
+	});
 	const verifier = client.randomPKCECodeVerifier();
 	const flow = { orgId, verifier, state: client.randomState(), nonce: client.randomNonce(), next };
 	cookies.set(FLOW_COOKIE, encrypt(JSON.stringify(flow), 'oidc-flow'), { path: '/auth/oidc', httpOnly: true, sameSite: 'lax', secure, maxAge: 600 });

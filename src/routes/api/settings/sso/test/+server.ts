@@ -10,6 +10,6 @@ export const POST = handler(async (event) => {
 	try {
 		return json(await testSso(s));
 	} catch (err) {
-		throw new HttpError(502, `Discovery failed: ${(err as Error).message}`);
+		throw new HttpError(422, (err as Error).message);
 	}
 });

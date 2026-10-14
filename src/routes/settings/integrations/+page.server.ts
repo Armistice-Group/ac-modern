@@ -1,6 +1,8 @@
+import { parseServiceAccountKey } from '#lib/google.ts';
 import { db } from '#lib/server/db.ts';
 import { adminCtx } from '#lib/server/http.ts';
 import { config } from '#lib/server/config.ts';
+import { getSource } from '#lib/server/directory.ts';
 import { getIntegration } from '#lib/server/integrations.ts';
 import type { PageServerLoad } from './$types';
 
@@ -18,13 +20,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		"SELECT integration, CAST(COUNT(*) AS INTEGER) AS n FROM resources WHERE org_id = ? AND fulfillment = 'integration' AND archived = 0 GROUP BY integration",
 		[c.org.id]
 	);
-	let sa = '';
-	try {
-		sa = g ? JSON.parse(g.serviceAccountJson).client_email : '';
-	} catch {}
+	const key = g ? parseServiceAccountKey(g.serviceAccountJson) : null;
+	const sa = key && !('error' in key) ? { clientId: key.clientId, email: key.clientEmail } : null;
 	return {
 		github: gh ? { org: gh.org } : null,
 		google: g ? { adminEmail: g.adminEmail, serviceAccount: sa } : null,
+		directoryGoogleKey: await directoryGoogleKey(d, c.org.id),
 		okta: okta ? { domain: okta.domain } : null,
 		authentik: authentik ? { url: authentik.url } : null,
 		entra: entra ? { tenantId: entra.tenantId, clientId: entra.clientId } : null,
@@ -35,3 +36,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		slackShared: !!config.slackApp
 	};
 };
+
+/** Directory sync's Google key, which provisioning reuses when no key of its own is saved. */
+async function directoryGoogleKey(d: Awaited<ReturnType<typeof db>>, orgId: string) {
+	const source = await getSource(d, orgId);
+	if (source?.kind !== 'google' || !source.config.serviceAccountJson) return null;
+	const key = parseServiceAccountKey(source.config.serviceAccountJson);
+	return 'error' in key ? null : { clientId: key.clientId, email: key.clientEmail };
+}

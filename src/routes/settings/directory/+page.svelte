@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { Copy, LoaderCircle, RefreshCw, CircleCheck, CircleAlert, Trash2, Plus, ShieldCheck, KeyRound, Users } from '@lucide/svelte';
+	import GoogleSetup from '#lib/components/GoogleSetup.svelte';
 	import Switch from '#lib/components/Switch.svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
+	import { GOOGLE_DIRECTORY_SCOPES, GOOGLE_LINKS, GOOGLE_PROVISIONING_SCOPES } from '#lib/google.ts';
 	import { confirmAction, toast } from '#lib/client/state.svelte.ts';
 	import { ago, dateTime } from '#lib/format.ts';
 	import type { PageProps } from './$types';
@@ -121,18 +123,18 @@
 					<div class="flex gap-2"><input class="input font-mono text-xs" readonly value={data.scimUrl} /><button type="button" class="btn btn-secondary" onclick={() => copy(data.scimUrl)}><Copy />Copy</button></div>
 				</div>
 			{:else if kind === 'google'}
-				<ol class="list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
-					<li>In Google Cloud, create a service account and a JSON key. Note its client ID.</li>
-					<li>In the Admin console → Security → API controls → Domain-wide delegation, add that client ID with the scopes <code class="font-mono">admin.directory.user.readonly</code>, <code class="font-mono">admin.directory.group.readonly</code> and <code class="font-mono">admin.directory.group.member.readonly</code>.</li>
-				</ol>
-				<div>
-					<label class="label" for="sa">Service account JSON key</label>
-					<textarea id="sa" class="input h-24 resize-none py-2 font-mono text-[0.6875rem]" placeholder={data.source?.hasSecret.serviceAccountJson ? '•••••••• saved. Paste a new key to replace it' : '{ "type": "service_account", … }'} bind:value={cfg.serviceAccountJson}></textarea>
-				</div>
-				<div>
-					<label class="label" for="ae">Admin to act as</label>
-					<input id="ae" class="input" type="email" placeholder="admin@acme.com" bind:value={cfg.adminEmail} />
-				</div>
+				<p class="text-xs text-muted-foreground">
+					ac·modern reads users, groups and managers through a Google Cloud service account, with read-only access you grant in the Admin console. About 10 minutes; you need to be a Workspace super admin.
+					<a class="text-primary hover:underline" href={GOOGLE_LINKS.docs} target="_blank" rel="noreferrer">Full guide</a>
+				</p>
+				<GoogleSetup
+					id="dir-google"
+					scopes={GOOGLE_DIRECTORY_SCOPES}
+					other={{ name: 'Google Workspace provisioning', scopes: GOOGLE_PROVISIONING_SCOPES, key: data.googleProvisioningKey }}
+					saved={data.source?.kind === 'google' ? data.source.serviceAccount : null}
+					bind:json={() => cfg.serviceAccountJson ?? '', (v) => (cfg.serviceAccountJson = v)}
+					bind:adminEmail={() => cfg.adminEmail ?? '', (v) => (cfg.adminEmail = v)}
+				/>
 			{:else if kind === 'okta'}
 				<p class="text-xs text-muted-foreground">Create an API token (Security → API → Tokens) as a Read-only Administrator.</p>
 				<div class="grid gap-3 sm:grid-cols-2">

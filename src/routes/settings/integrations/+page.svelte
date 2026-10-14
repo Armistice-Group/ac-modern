@@ -3,6 +3,8 @@
 	import { CircleCheck, LoaderCircle, GitBranch, Mail, MessageSquare, ShieldCheck, Fingerprint, Building2 } from '@lucide/svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
 	import { confirmAction, toast } from '#lib/client/state.svelte.ts';
+	import GoogleSetup from '#lib/components/GoogleSetup.svelte';
+	import { GOOGLE_DIRECTORY_SCOPES, GOOGLE_LINKS, GOOGLE_PROVISIONING_SCOPES } from '#lib/google.ts';
 	import SlackSettings from './SlackSettings.svelte';
 	import type { PageProps } from './$types';
 
@@ -85,11 +87,19 @@
 			</div>
 		</div>
 		<form class="mt-4 space-y-3" onsubmit={(e) => (e.preventDefault(), connect('google', g))}>
-			<p class="text-[0.6875rem] text-muted-foreground">
-				A service account with domain-wide delegation for <span class="font-mono">admin.directory.group.member</span> and <span class="font-mono">admin.directory.user</span>{data.google?.serviceAccount ? ` (using ${data.google.serviceAccount})` : ''}. It can be the same one as directory sync, with these scopes added.
+			<p class="text-xs text-muted-foreground">
+				A Google Cloud service account with permission, granted in the Admin console, to manage group members and suspend accounts.
+				<a class="text-primary hover:underline" href={GOOGLE_LINKS.docs} target="_blank" rel="noreferrer">Full guide</a>
 			</p>
-			<textarea class="input h-20 resize-none py-2 font-mono text-[0.6875rem]" placeholder={data.google ? '•••••••• key saved. Paste a new one to replace it' : 'Service account JSON key'} bind:value={g.serviceAccountJson}></textarea>
-			<input class="input" type="email" placeholder="Admin to act as (admin@acme.com)" bind:value={g.adminEmail} required />
+			<GoogleSetup
+				id="int-google"
+				scopes={GOOGLE_PROVISIONING_SCOPES}
+				other={{ name: 'directory sync', scopes: GOOGLE_DIRECTORY_SCOPES, key: data.directoryGoogleKey }}
+				saved={data.google?.serviceAccount ?? null}
+				reusesOther
+				bind:json={g.serviceAccountJson}
+				bind:adminEmail={g.adminEmail}
+			/>
 			<div class="flex gap-2">
 				<button class="btn btn-primary" disabled={!!busy}>{#if busy === 'google'}<LoaderCircle class="animate-spin" />{/if}{data.google ? 'Save' : 'Connect'}</button>
 				{#if data.google}

@@ -1,4 +1,5 @@
 import { addMember, createUser, normEmail, EMAIL_RE } from './accounts.ts';
+import { parseServiceAccountKey } from '#lib/google.ts';
 import { decrypt, encrypt, newId, randomToken, sha256 } from './crypto.ts';
 import type { Db } from './db.ts';
 import { record } from './events.ts';
@@ -82,12 +83,8 @@ export async function saveSource(db: Db, orgId: string, input: { kind: Directory
 	for (const [k, v] of Object.entries(input.config)) if (v) config[k] = v.trim();
 	for (const k of REQUIRED[input.kind]) if (!config[k]) throw badRequest(`${k} is required`);
 	if (input.kind === 'google') {
-		try {
-			const sa = JSON.parse(config.serviceAccountJson);
-			if (!sa.client_email || !sa.private_key) throw new Error();
-		} catch {
-			throw badRequest('Paste the service account’s JSON key file');
-		}
+		const key = parseServiceAccountKey(config.serviceAccountJson);
+		if ('error' in key) throw badRequest(key.error);
 	}
 	if (current && current.kind !== input.kind) {
 		// A different directory: its ids mean nothing here, so start clean rather than

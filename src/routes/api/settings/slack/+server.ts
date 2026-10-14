@@ -18,7 +18,7 @@ export const PUT = handler(async (event) => {
 		await record(d, { orgId: c.org.id, actorId: c.user.id, action: 'settings.updated', subject: 'Slack', summary: `Connected the Slack app (${r.team})` });
 		return json(r);
 	} catch (err) {
-		throw new HttpError(502, (err as Error).message);
+		throw new HttpError(422, (err as Error).message);
 	}
 });
 

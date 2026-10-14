@@ -11,7 +11,7 @@ export const POST = handler(async (event) => {
 	try {
 		await postSlack(slackWebhook, `:wave: ac·modern is connected. Access requests for *${c.org.name}* will show up here.`);
 	} catch (err) {
-		throw new HttpError(502, (err as Error).message);
+		throw new HttpError(422, (err as Error).message);
 	}
 	return json({ ok: true });
 });

@@ -100,7 +100,7 @@ test('Google Workspace: group membership and account suspension', async () => {
 		calls.push(`${init?.method} ${decodeURIComponent(url.pathname)} ${init?.body ?? ''}`.trim());
 		return respond(init?.method === 'DELETE' ? 204 : 200, {});
 	});
-	await saveIntegration(w.db, w.org.id, 'google', { serviceAccountJson: JSON.stringify({ client_email: 'sa@x', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) }), adminEmail: 'admin@acme.test' });
+	await saveIntegration(w.db, w.org.id, 'google', { serviceAccountJson: JSON.stringify({ type: 'service_account', client_email: 'sa@x', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) }), adminEmail: 'admin@acme.test' });
 	const id = await saveResource(w.db, w.org.id, null, w.base({ name: 'Drive', fulfillment: 'integration', integration: 'google', integrationMap: { '#0': { type: 'google_group', group: 'eng@acme.test', role: 'MEMBER' }, '#1': { type: 'google_account' } } }));
 	const roles = await w.db.all<{ id: string }>('SELECT id FROM resource_roles WHERE resource_id = ? ORDER BY position', [id]);
 	const dev = await w.mk('dev');

@@ -1,4 +1,5 @@
 import type { DirectoryGroup, DirectoryUser } from '../directory.ts';
+import type { ScannedApp } from '#lib/types.ts';
 import { type Fetch, jsonOrThrow, ProviderError } from './http.ts';
 
 /** Okta's Users and Groups APIs, with an API token (read-only admin is enough for pulls). */
@@ -110,4 +111,37 @@ export async function oktaRevoke(cfg: OktaConfig, level: OktaLevel, email: strin
 			: await okta(cfg, f, 'DELETE', `/api/v1/apps/${level.id}/users/${uid}`);
 	if (res.status !== 404) await done(res, level.type === 'okta_group' ? 'Okta group' : 'Okta app assignment');
 	return level.type === 'okta_group' ? `Okta: ${email} removed from group ${level.name || level.id}` : `Okta: ${level.name || level.id} unassigned from ${email}`;
+}
+
+// ── App scan ─────────────────────────────────────────────────────────────────
+
+/** Okta's own apps (dashboard, admin console, browser plugin), not worth tracking as resources. */
+const OKTA_INTERNAL = new Set(['saasure', 'okta_enduser', 'okta_browser_plugin', 'okta_flow_sso', 'flow']);
+
+/**
+ * Active apps with their assignments. A group assignment becomes an access level that
+ * provisions by group membership; people assigned directly become a level that
+ * provisions by app assignment.
+ */
+export async function oktaApps(cfg: OktaConfig, f: Fetch = fetch): Promise<ScannedApp[]> {
+	const apps = await pages<{ id: string; name: string; label: string; status: string; _links?: { appLinks?: { href: string }[] } }>(cfg, f, `/api/v1/apps?limit=200&filter=${encodeURIComponent('status eq "ACTIVE"')}`);
+	const groupEmails = new Map<string, string[]>();
+	const out: ScannedApp[] = [];
+	for (const app of apps.filter((a) => !OKTA_INTERNAL.has(a.name))) {
+		const groups = await pages<{ id: string; _embedded?: { group?: { profile?: { name?: string } } } }>(cfg, f, `/api/v1/apps/${app.id}/groups?limit=200&expand=group`);
+		const levels: ScannedApp['levels'] = [];
+		for (const g of groups) {
+			if (!groupEmails.has(g.id)) {
+				const users = await pages<OUser>(cfg, f, `/api/v1/groups/${g.id}/users?limit=200`);
+				groupEmails.set(g.id, users.filter((u) => u.status === 'ACTIVE').map((u) => u.profile.email ?? u.profile.login));
+			}
+			const name = g._embedded?.group?.profile?.name ?? g.id;
+			levels.push({ name, mapping: { type: 'okta_group', id: g.id, name }, emails: groupEmails.get(g.id)! });
+		}
+		const assigned = await pages<{ scope: string; status?: string; _embedded?: { user?: OUser } }>(cfg, f, `/api/v1/apps/${app.id}/users?limit=200&expand=user`);
+		const direct = assigned.filter((a) => a.scope === 'USER' && a._embedded?.user?.status === 'ACTIVE').map((a) => a._embedded!.user!.profile.email ?? a._embedded!.user!.profile.login);
+		if (direct.length || !groups.length) levels.push({ name: groups.length ? 'Direct assignment' : 'Access', mapping: { type: 'okta_app', id: app.id, name: app.label }, emails: direct });
+		out.push({ ref: `okta:app:${app.id}`, name: app.label, url: app._links?.appLinks?.[0]?.href ?? '', description: '', openToAll: false, levels });
+	}
+	return out;
 }

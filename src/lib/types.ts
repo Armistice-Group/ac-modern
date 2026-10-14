@@ -194,3 +194,25 @@ export interface Approval {
 	comment: string;
 	at: string;
 }
+
+/** An app found in an identity provider, as the scan reports it (before matching people). */
+export interface ScannedApp {
+	/** Stable reference, e.g. "authentik:app:<uuid>". */
+	ref: string;
+	name: string;
+	url: string;
+	description: string;
+	/** Everyone in the IdP can use it (no assignments or bindings). */
+	openToAll: boolean;
+	/** One per group (or direct assignment) that grants the app. A null mapping can't be provisioned. */
+	levels: { name: string; mapping: LevelMapping | null; emails: string[] }[];
+}
+
+/** A scanned app as the import page shows it: matched against resources and members. */
+export interface DiscoveredApp extends Omit<ScannedApp, 'levels'> {
+	/** The resource it was imported as, if it was. */
+	resourceId: string | null;
+	/** Every level can be granted through the IdP, so the import sets it up that way. */
+	provisioned: boolean;
+	levels: { name: string; provisioned: boolean; people: number; notMembers: string[] }[];
+}

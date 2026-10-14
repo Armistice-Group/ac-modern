@@ -1,0 +1,55 @@
+---
+title: Importing apps from your IdP
+description: Turn the apps your identity provider already manages into resources, with who has them today.
+icon: scan-search
+---
+
+Your identity provider already knows which apps you use and who can sign in to each. **Resources → Import from IdP** reads that, so you start with a complete inventory and a recorded baseline of access instead of a hand-typed list.
+
+It works with **Authentik**, **Okta** and **Microsoft Entra ID**, once connected under **Settings → Integrations**. The scan only reads; nothing changes in your IdP.
+
+## What gets imported
+
+For each app you tick:
+
+| In your IdP | In ac·modern |
+|---|---|
+| The app | A resource with its name, launch URL and description |
+| Each **group** that grants it (Authentik group binding, Okta group assignment, Entra group assignment) | An access level named after the group. Approved requests add people to that group. |
+| People assigned **directly** | A *Direct assignment* level. In Okta it's provisioned by app assignment; in Authentik and Entra it's set up by hand. |
+| Everyone who can use it today | **Recorded access** with the source *IdP*, so it's in [reviews](/guides/access-reviews), [offboarding](/guides/offboarding) and the [audit evidence](/compliance/audit-evidence) |
+
+If every level maps to a group (or an Okta app assignment), the resource is set to be **set up by** that IdP. Otherwise it's set up by hand, and you can change that on the resource.
+
+You become each resource's owner, and your organisation's default approval rule applies. Review both afterwards: the owner is who approves under *system owner* rules, so pick the real one.
+
+## Before you scan
+
+<Tabs>
+  <Tab title="Authentik">
+    The integration's API token must be able to read **applications**, **policy bindings** and **users**, as well as change groups. A token for a superuser service account covers it.
+
+    Authentik apps with no bindings are open to everyone with an Authentik account; they're marked *Open to everyone*. Apps gated only by expression policies (not groups or users) are imported with one level and no recorded access.
+  </Tab>
+  <Tab title="Okta">
+    The token's admin needs to read apps and their assignments: **Read-only Administrator** plus the roles the Okta integration already needs, or a Super Admin. Okta's own apps (Dashboard, Admin Console, browser plugin) are left out.
+  </Tab>
+  <Tab title="Entra ID">
+    Add the **application** permission `Application.Read.All` to the app registration (with admin consent), alongside `GroupMember.ReadWrite.All`. The scan lists **Enterprise applications**. If an app doesn't require assignment and nobody is assigned, it's marked *Open to everyone*.
+  </Tab>
+</Tabs>
+
+## Scanning
+
+1. **Resources → Import from IdP.** The scan runs straight away; with more than one IdP connected, pick one at the top.
+2. Each app shows its groups, how many people each grants, and how many of them **aren't in ac·modern yet**. Hover over that count to see who.
+3. Apps already imported are marked **Imported** and can't be picked again. ac·modern's own sign-in app is left unticked.
+4. Tick the apps to track and click **Import**.
+
+<Tip>
+  Add your people first, through [directory sync](/identity/directory-sync) or invites. Access for anyone who isn't a member yet can't be recorded, and an app isn't imported twice, so record their access afterwards under **Access → Record existing access**.
+</Tip>
+
+## In the audit evidence
+
+The import is your starting point, like [recording existing access](/guides/recording-existing-access) by hand. Each recorded grant says *Found in Authentik by an app scan (group engineering)* and is listed under **Access outside requests** for the period you imported in. After that, new access should go through requests.

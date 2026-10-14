@@ -380,5 +380,10 @@ CREATE TABLE password_resets (
 	used_at TEXT
 );
 CREATE INDEX password_resets_user ON password_resets(user_id)
+`,
+	// Resources imported from an IdP's app list remember which app they came from.
+	`
+ALTER TABLE resources ADD COLUMN external_ref TEXT NOT NULL DEFAULT '';
+CREATE INDEX resources_external_ref ON resources(org_id, external_ref)
 `
 ];

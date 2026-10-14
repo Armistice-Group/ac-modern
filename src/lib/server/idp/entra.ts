@@ -1,4 +1,5 @@
 import type { DirectoryGroup, DirectoryUser } from '../directory.ts';
+import type { ScannedApp } from '#lib/types.ts';
 import { type Fetch, jsonOrThrow, ProviderError } from './http.ts';
 
 /** Microsoft Entra ID through Microsoft Graph, as an app with User.Read.All and GroupMember.Read.All. */
@@ -131,4 +132,55 @@ export async function entraRevoke(cfg: EntraConfig, level: EntraLevel, email: st
 	const res = await graph(token, f, 'DELETE', `/groups/${level.id}/members/${uid}/$ref`);
 	if (!res.ok && res.status !== 204 && res.status !== 404) await jsonOrThrow(res, 'Microsoft group');
 	return `Entra ID: ${email} removed from group ${level.name || level.id}`;
+}
+
+// ── App scan ─────────────────────────────────────────────────────────────────
+
+/**
+ * Enterprise applications (service principals tagged as integrated apps) and who's
+ * assigned to them. Group assignments become access levels that provision by group
+ * membership; direct user assignments become a level that can't be provisioned yet.
+ * Needs Application.Read.All on top of the directory permissions.
+ */
+export async function entraApps(cfg: EntraConfig, f: Fetch = fetch): Promise<ScannedApp[]> {
+	const token = await graphToken(cfg, f);
+	const sps = await pages<{ id: string; displayName: string; homepage?: string | null; appRoleAssignmentRequired?: boolean; notes?: string | null }>(
+		f,
+		token,
+		`${GRAPH}/servicePrincipals?$filter=${encodeURIComponent("tags/any(t:t eq 'WindowsAzureActiveDirectoryIntegratedApp')")}&$select=id,displayName,homepage,appRoleAssignmentRequired,notes&$top=999`
+	);
+	const groupEmails = new Map<string, string[]>();
+	const userEmail = new Map<string, string>();
+	const out: ScannedApp[] = [];
+	for (const sp of sps) {
+		const assignments = await pages<{ principalType: string; principalId: string; principalDisplayName: string }>(f, token, `${GRAPH}/servicePrincipals/${sp.id}/appRoleAssignedTo?$top=999`);
+		const levels: ScannedApp['levels'] = [];
+		for (const a of assignments.filter((x) => x.principalType === 'Group')) {
+			if (levels.some((l) => l.mapping && 'id' in l.mapping && l.mapping.id === a.principalId)) continue;
+			if (!groupEmails.has(a.principalId)) {
+				const users = await pages<GUser>(f, token, `${GRAPH}/groups/${a.principalId}/transitiveMembers/microsoft.graph.user?$select=mail,userPrincipalName,accountEnabled&$top=999`);
+				groupEmails.set(a.principalId, users.filter((u) => u.accountEnabled !== false).map((u) => u.mail || u.userPrincipalName));
+			}
+			levels.push({ name: a.principalDisplayName, mapping: { type: 'entra_group', id: a.principalId, name: a.principalDisplayName }, emails: groupEmails.get(a.principalId)! });
+		}
+		const direct: string[] = [];
+		for (const a of assignments.filter((x) => x.principalType === 'User')) {
+			if (!userEmail.has(a.principalId)) {
+				const u = await jsonOrThrow<GUser>(await f(`${GRAPH}/users/${a.principalId}?$select=mail,userPrincipalName,accountEnabled`, { headers: { authorization: `Bearer ${token}` } }), 'Microsoft Graph user');
+				userEmail.set(a.principalId, u.accountEnabled === false ? '' : u.mail || u.userPrincipalName);
+			}
+			if (userEmail.get(a.principalId)) direct.push(userEmail.get(a.principalId)!);
+		}
+		if (direct.length) levels.push({ name: 'Direct assignment', mapping: null, emails: [...new Set(direct)] });
+		out.push({
+			ref: `entra:app:${sp.id}`,
+			name: sp.displayName,
+			url: sp.homepage ?? '',
+			description: sp.notes ?? '',
+			// Without "Assignment required", anyone in the tenant can sign in.
+			openToAll: sp.appRoleAssignmentRequired === false && !assignments.length,
+			levels
+		});
+	}
+	return out;
 }

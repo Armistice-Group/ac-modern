@@ -1,3 +1,4 @@
+import type { ScannedApp } from '#lib/types.ts';
 import { type Fetch, jsonOrThrow, ProviderError } from './http.ts';
 
 /**
@@ -60,4 +61,70 @@ export async function authentikRevoke(cfg: AuthentikConfig, level: AuthentikLeve
 	const res = await ak(cfg, f, 'POST', `/core/groups/${level.id}/remove_user/`, { pk });
 	if (!res.ok && res.status !== 204 && res.status !== 404) await jsonOrThrow(res, 'Authentik group');
 	return `Authentik: ${email} removed from group ${level.name || level.id}`;
+}
+
+// ── App scan ─────────────────────────────────────────────────────────────────
+
+async function all<T>(cfg: AuthentikConfig, f: Fetch, path: string, what: string): Promise<T[]> {
+	const out: T[] = [];
+	for (let page = 1; page < 200; page++) {
+		const r = await jsonOrThrow<{ results: T[]; pagination?: { next: number } }>(await ak(cfg, f, 'GET', `${path}${path.includes('?') ? '&' : '?'}page_size=100&page=${page}`), what);
+		out.push(...r.results);
+		if (!r.pagination?.next) break;
+	}
+	return out;
+}
+
+interface AkBinding {
+	group: string | null;
+	group_obj?: { name: string } | null;
+	user: number | null;
+	user_obj?: { email: string; is_active?: boolean } | null;
+	policy: string | null;
+	enabled: boolean;
+	negate: boolean;
+}
+
+/**
+ * Applications, and who each one lets in: a group binding becomes an access level that
+ * provisions by group membership; user bindings become a "Direct access" level that
+ * can't. No bindings at all means Authentik lets everyone in.
+ */
+export async function authentikApps(cfg: AuthentikConfig, f: Fetch = fetch): Promise<ScannedApp[]> {
+	// superuser_full_list: every application, not just the ones the token's user can open.
+	const apps = await all<{ pk: string; name: string; slug: string; launch_url?: string | null; meta_launch_url?: string; meta_description?: string }>(
+		cfg,
+		f,
+		'/core/applications/?superuser_full_list=true&ordering=name',
+		'Authentik applications'
+	);
+	const members = new Map<string, string[]>();
+	const groupEmails = async (pk: string) => {
+		if (!members.has(pk)) {
+			const users = await all<{ email: string; is_active: boolean }>(cfg, f, `/core/users/?groups_by_pk=${encodeURIComponent(pk)}&is_active=true`, 'Authentik group members');
+			members.set(pk, users.map((u) => u.email).filter(Boolean));
+		}
+		return members.get(pk)!;
+	};
+	const out: ScannedApp[] = [];
+	for (const app of apps) {
+		const bindings = (await all<AkBinding>(cfg, f, `/policies/bindings/?target=${encodeURIComponent(app.pk)}`, 'Authentik policy bindings')).filter((b) => b.enabled && !b.negate);
+		const levels: ScannedApp['levels'] = [];
+		for (const b of bindings) {
+			if (!b.group) continue;
+			const name = b.group_obj?.name ?? b.group;
+			levels.push({ name, mapping: { type: 'authentik_group', id: b.group, name }, emails: await groupEmails(b.group) });
+		}
+		const direct = bindings.filter((b) => b.user && b.user_obj?.email && b.user_obj.is_active !== false).map((b) => b.user_obj!.email);
+		if (direct.length) levels.push({ name: 'Direct access', mapping: null, emails: direct });
+		out.push({
+			ref: `authentik:app:${app.pk}`,
+			name: app.name,
+			url: app.launch_url || app.meta_launch_url || '',
+			description: app.meta_description ?? '',
+			openToAll: bindings.length === 0,
+			levels
+		});
+	}
+	return out;
 }

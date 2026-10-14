@@ -12,7 +12,7 @@ export const init: ServerInit = () => {
 const PUBLIC = ['/login', '/setup', '/signup', '/invite/', '/forgot-password', '/reset-password/', '/auth/oidc/', '/api/auth/', '/api/health', '/api/slack/interactions', '/api/slack/oauth', '/api/billing/webhook'];
 /** Pages a signed-in user without an organisation can still open. */
 const NO_ORG_OK = ['/signup', '/account', '/api/account', '/api/orgs'];
-const ADMIN_PAGES = ['/resources/new', '/audit', '/settings', '/evidence'];
+const ADMIN_PAGES = ['/resources/new', '/resources/import', '/audit', '/settings', '/evidence'];
 const ADMIN_EXACT = ['/resources'];
 
 export const handle: Handle = async ({ event, resolve }) => {

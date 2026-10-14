@@ -24,6 +24,10 @@ Each access level maps to an **Authentik group**, listed from your instance.
 
 People are found by email. If someone has no Authentik account, the request goes to the fulfillers with that error. On removal, someone with no account counts as already removed.
 
+## Import apps
+
+**Resources → Import from IdP** lists your Authentik applications and the groups bound to each, and imports them as resources with who has them today. See [Importing apps from your IdP](/guides/importing-apps). The token also needs to read applications and policy bindings.
+
 <Note>
   Authentik can also be your [single sign-on](/identity/single-sign-on) provider, as an OIDC application.
 </Note>

@@ -12,7 +12,7 @@ Small teams usually handle access in Slack DMs and a spreadsheet, or pay for a h
 
 - **Catalog.** Every app and system people can request, with access levels (e.g. GitHub *Member / Maintainer / Owner*).
 - **Approvals.** Per resource: none, the requester's manager, resource approvers, or manager *then* approver. Nobody approves their own access, unless nobody else could (a one-person team); that case is logged as self-approved.
-- **Setup.** By hand (the fulfiller gets a task and marks it done), with the built-in **GitHub** (org and team membership) and **Google Workspace** (groups, account suspension) integrations, or by **webhook**: a signed POST to your script, n8n, Zapier or Lambda. If anything automatic fails, the task falls back to a person with the error.
+- **Setup.** By hand (the fulfiller gets a task and marks it done), with the built-in **GitHub** (org and team membership), **Google Workspace** (groups, account suspension), **Okta** (groups or app assignments), **Authentik** (groups) and **Microsoft Entra ID** (security groups) integrations, or by **webhook**: a signed POST to your script, n8n, Zapier or Lambda. If anything automatic fails, the task falls back to a person with the error.
 - **Time-boxed access.** Max and default durations per resource. Expired grants open a removal automatically, and people get a reminder before expiry with a one-click *Extend*.
 - **Access reviews.** Quarterly-style campaigns: each resource owner keeps or revokes every grant, and revoked ones become removals. Export the decisions as CSV evidence (SOC 2, ISO 27001).
 - **Offboarding.** One click deactivates the person, cancels their open requests, and opens a removal for everything they hold.
@@ -51,6 +51,10 @@ One container, no other services needed. Data lives in a SQLite file in the `/da
 
 `ACM_MODE=cloud` turns on `/signup`. Anyone (or only addresses matching `ACM_SIGNUP_ALLOW`) can create an organisation. One account can belong to several organisations and switch between them from the sidebar. Every table is scoped by `org_id`, and a test checks that one organisation can't read or act on another's data. Use Postgres in this mode.
 
+## Provisioning through your IdP
+
+Make the identity provider the place access is granted. A resource's levels map to an Okta group or app assignment, an Authentik group, an Entra ID security group, or a Google group. When a request is approved, ac·modern adds the person there; when it's removed or expires, ac·modern takes them out. The IdP then signs them in to the app, and provisions them in it if the app supports SCIM, so one connection covers every app behind it. People are matched by email. Connect each IdP under Settings → Integrations; it can reuse directory sync's credentials if they have write permission (Okta: Group Membership Admin / App Admin; Entra: `GroupMember.ReadWrite.All`; Authentik: a token that can edit groups).
+
 ## Billing (cloud)
 
 With `ACM_MODE=cloud` and a Stripe key, organisations get a free tier (`ACM_FREE_SEATS`, default 5) and a per-seat plan (`ACM_STRIPE_PRICE_ID`) with a trial (`ACM_TRIAL_DAYS`). Upgrading goes through Stripe Checkout, and cards and invoices are handled in the Stripe Customer Portal. Seats follow active members automatically. Point a Stripe webhook at `/api/billing/webhook` (`checkout.session.completed`, `customer.subscription.*`) and set `ACM_STRIPE_WEBHOOK_SECRET`. Over the free limit, only *adding* people pauses. Approvals, removals and offboarding always work. Self-hosted installs have no billing.
@@ -84,6 +88,7 @@ pnpm test                                  # workflow tests on SQLite
 TEST_DATABASE_URL=postgres://… pnpm test   # same tests on Postgres
 pnpm check
 pnpm screenshots                           # regenerates docs/screenshots from demo data
+pnpm docs:dev                              # Mintlify docs at http://localhost:3000 (regenerates the API reference first)
 ```
 
 Stack: SvelteKit (adapter-node), Svelte 5, Tailwind 4, TypeScript, Node 24 (built-in `node:sqlite`) or `pg`. The UI uses the same theme as pg·modern and octo·modern.

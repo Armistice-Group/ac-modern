@@ -1,0 +1,882 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "ac·modern API",
+		"version": "1",
+		"description": "Read-only access to people, systems, access, access requests with their approvals, reviews and the audit log, for GRC tools and scripts. Authenticate with `Authorization: Bearer acm_…` (Settings → API). 600 requests a minute per token."
+	},
+	"servers": [
+		{
+			"url": "https://access.example.com/api/v1"
+		}
+	],
+	"security": [
+		{
+			"bearer": []
+		}
+	],
+	"paths": {
+		"/organization": {
+			"get": {
+				"summary": "The organisation and its access-control settings",
+				"parameters": [],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
+		"/users": {
+			"get": {
+				"summary": "People, with role, manager and status",
+				"parameters": [
+					{
+						"name": "status",
+						"in": "query",
+						"schema": {
+							"enum": [
+								"all",
+								"active",
+								"deactivated"
+							]
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/User"
+											}
+										},
+										"next_cursor": {
+											"type": [
+												"string",
+												"null"
+											],
+											"description": "Pass as ?cursor= for the next page"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
+		"/resources": {
+			"get": {
+				"summary": "Systems people can request, with owners, approval rules and access levels",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/Resource"
+											}
+										},
+										"next_cursor": {
+											"type": [
+												"string",
+												"null"
+											],
+											"description": "Pass as ?cursor= for the next page"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
+		"/access": {
+			"get": {
+				"summary": "Who has what (grants)",
+				"parameters": [
+					{
+						"name": "status",
+						"in": "query",
+						"schema": {
+							"enum": [
+								"active",
+								"all"
+							]
+						}
+					},
+					{
+						"name": "user_email",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "resource_id",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/Grant"
+											}
+										},
+										"next_cursor": {
+											"type": [
+												"string",
+												"null"
+											],
+											"description": "Pass as ?cursor= for the next page"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
+		"/requests": {
+			"get": {
+				"summary": "Access requests and removals in a period, with approvals (the audit population)",
+				"parameters": [
+					{
+						"name": "from",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"description": "Inclusive (YYYY-MM-DD or ISO-8601)"
+					},
+					{
+						"name": "to",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"description": "Inclusive day, or exclusive ISO-8601 instant"
+					},
+					{
+						"name": "type",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Comma-separated: new_hire, transfer, change, new_access, extension, removal"
+					},
+					{
+						"name": "privileged",
+						"in": "query",
+						"schema": {
+							"type": "boolean"
+						}
+					},
+					{
+						"name": "exceptions",
+						"in": "query",
+						"schema": {
+							"type": "boolean"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/Request"
+											}
+										},
+										"next_cursor": {
+											"type": [
+												"string",
+												"null"
+											],
+											"description": "Pass as ?cursor= for the next page"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
+		"/requests/{number}": {
+			"get": {
+				"summary": "One request with approvals, full timeline and record fingerprint",
+				"parameters": [
+					{
+						"name": "number",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "integer"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK"
+					},
+					"404": {
+						"description": "Not found"
+					}
+				}
+			}
+		},
+		"/reviews": {
+			"get": {
+				"summary": "Access review campaigns",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
+		"/reviews/{id}": {
+			"get": {
+				"summary": "A review with every item and decision",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK"
+					}
+				}
+			}
+		},
+		"/events": {
+			"get": {
+				"summary": "The audit log",
+				"parameters": [
+					{
+						"name": "from",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"description": "Inclusive (YYYY-MM-DD or ISO-8601)"
+					},
+					{
+						"name": "to",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"description": "Inclusive day, or exclusive ISO-8601 instant"
+					},
+					{
+						"name": "action",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						},
+						"description": "e.g. request, grant.created"
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/Event"
+											}
+										},
+										"next_cursor": {
+											"type": [
+												"string",
+												"null"
+											],
+											"description": "Pass as ?cursor= for the next page"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"securitySchemes": {
+			"bearer": {
+				"type": "http",
+				"scheme": "bearer"
+			}
+		},
+		"schemas": {
+			"User": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"email": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"role": {
+						"enum": [
+							"owner",
+							"admin",
+							"member"
+						]
+					},
+					"status": {
+						"enum": [
+							"active",
+							"deactivated"
+						]
+					},
+					"manager": {
+						"type": [
+							"object",
+							"null"
+						],
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"email": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							}
+						}
+					},
+					"source": {
+						"enum": [
+							"manual",
+							"directory"
+						]
+					},
+					"joined_at": {
+						"type": "string"
+					},
+					"last_login_at": {
+						"type": [
+							"string",
+							"null"
+						]
+					}
+				}
+			},
+			"Resource": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"owner": {
+						"type": [
+							"object",
+							"null"
+						],
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"email": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							}
+						}
+					},
+					"approval_policy": {
+						"enum": [
+							"none",
+							"manager",
+							"approvers",
+							"manager_then_approvers"
+						]
+					},
+					"access_levels": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string"
+								},
+								"name": {
+									"type": "string"
+								},
+								"privileged": {
+									"type": "boolean"
+								}
+							}
+						}
+					}
+				}
+			},
+			"Grant": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"user": {
+						"type": [
+							"object",
+							"null"
+						],
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"email": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							}
+						}
+					},
+					"resource": {
+						"type": "object"
+					},
+					"access_level": {
+						"type": "object"
+					},
+					"status": {
+						"enum": [
+							"active",
+							"pending_revoke",
+							"revoked"
+						]
+					},
+					"source": {
+						"enum": [
+							"request",
+							"manual",
+							"import",
+							"idp"
+						]
+					},
+					"request_number": {
+						"type": [
+							"integer",
+							"null"
+						]
+					},
+					"granted_at": {
+						"type": "string"
+					},
+					"expires_at": {
+						"type": [
+							"string",
+							"null"
+						]
+					}
+				}
+			},
+			"Request": {
+				"type": "object",
+				"properties": {
+					"number": {
+						"type": "integer"
+					},
+					"kind": {
+						"enum": [
+							"grant",
+							"revoke"
+						]
+					},
+					"type": {
+						"enum": [
+							"new_hire",
+							"transfer",
+							"change",
+							"new_access",
+							"extension",
+							"removal"
+						]
+					},
+					"privileged": {
+						"type": "boolean"
+					},
+					"status": {
+						"enum": [
+							"pending_approval",
+							"pending_fulfillment",
+							"completed",
+							"denied",
+							"cancelled"
+						]
+					},
+					"user": {
+						"type": [
+							"object",
+							"null"
+						],
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"email": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							}
+						}
+					},
+					"manager_at_request": {
+						"type": [
+							"object",
+							"null"
+						],
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"email": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							}
+						}
+					},
+					"resource": {
+						"type": "object"
+					},
+					"access_level": {
+						"type": "object"
+					},
+					"requested_by": {
+						"type": [
+							"object",
+							"null"
+						],
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"email": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							}
+						}
+					},
+					"requested_at": {
+						"type": "string"
+					},
+					"justification": {
+						"type": "string"
+					},
+					"approvals": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"step": {
+									"type": "integer"
+								},
+								"decision": {
+									"enum": [
+										"approved",
+										"denied"
+									]
+								},
+								"capacity": {
+									"enum": [
+										"manager",
+										"system_owner",
+										"approver",
+										"admin_fallback",
+										"admin_override",
+										"self",
+										null
+									]
+								},
+								"approver": {
+									"type": [
+										"object",
+										"null"
+									],
+									"properties": {
+										"id": {
+											"type": "string"
+										},
+										"email": {
+											"type": "string"
+										},
+										"name": {
+											"type": "string"
+										}
+									}
+								},
+								"at": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"approved_at": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"fulfilled_at": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"flags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"exception": {
+						"type": "boolean"
+					}
+				}
+			},
+			"Event": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"at": {
+						"type": "string"
+					},
+					"actor": {
+						"type": [
+							"object",
+							"null"
+						],
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"email": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							}
+						}
+					},
+					"action": {
+						"type": "string"
+					},
+					"request_number": {
+						"type": [
+							"integer",
+							"null"
+						]
+					},
+					"summary": {
+						"type": "string"
+					}
+				}
+			}
+		}
+	}
+}

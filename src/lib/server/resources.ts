@@ -2,6 +2,7 @@ import { decrypt, encrypt, newId } from './crypto.ts';
 import type { Db } from './db.ts';
 import { badRequest, notFound } from './http.ts';
 import type { ApprovalPolicy, Fulfillment, IntegrationKind, LevelMapping, Resource, ResourceRole } from '#lib/types.ts';
+import { INTEGRATION_KINDS, INTEGRATIONS, mappingValid } from '#lib/integrations.ts';
 
 const now = () => new Date().toISOString();
 
@@ -116,13 +117,11 @@ export function validateResource(input: ResourceInput) {
 		}
 	}
 	if (input.fulfillment === 'integration') {
-		if (input.integration !== 'github' && input.integration !== 'google') throw badRequest('Choose GitHub or Google Workspace');
+		const kind = input.integration;
+		if (!kind || !INTEGRATION_KINDS.includes(kind)) throw badRequest('Choose which integration sets this up');
 		const map = input.integrationMap ?? {};
 		for (const [i, r] of input.roles.entries()) {
-			const m = map[r.id ?? ''] ?? map[`#${i}`];
-			if (!m) throw badRequest(`Say what “${r.name}” means in ${input.integration === 'github' ? 'GitHub' : 'Google Workspace'}`);
-			if (input.integration === 'github' && !(m.type === 'github_org' || (m.type === 'github_team' && m.team))) throw badRequest(`Pick a GitHub team or org role for “${r.name}”`);
-			if (input.integration === 'google' && !(m.type === 'google_account' || (m.type === 'google_group' && /@/.test(m.group)))) throw badRequest(`Enter the Google group address for “${r.name}”`);
+			if (!mappingValid(kind, map[r.id ?? ''] ?? map[`#${i}`])) throw badRequest(`Say what “${r.name}” means in ${INTEGRATIONS[kind].name}`);
 		}
 	}
 	if (input.maxDays !== null && input.defaultDays !== null && input.defaultDays > input.maxDays) {
@@ -259,7 +258,7 @@ export function parseResourceInput(b: Record<string, unknown>): ResourceInput {
 		fulfillment,
 		webhookUrl: fulfillment === 'webhook' ? text('webhookUrl', 1000) : '',
 		webhookSecret: typeof b.webhookSecret === 'string' ? b.webhookSecret : undefined,
-		integration: b.integration === 'github' || b.integration === 'google' ? b.integration : '',
+		integration: INTEGRATION_KINDS.includes(b.integration as IntegrationKind) ? (b.integration as IntegrationKind) : '',
 		integrationMap: parseMap(b.integrationMap),
 		maxDays: num('maxDays'),
 		defaultDays: num('defaultDays'),
@@ -285,6 +284,7 @@ function parseMap(v: unknown): Record<string, LevelMapping> {
 		else if (t === 'github_team') out[k] = { type: t, team: str(raw.team), role: raw.role === 'maintainer' ? 'maintainer' : 'member' };
 		else if (t === 'google_group') out[k] = { type: t, group: str(raw.group).toLowerCase(), role: raw.role === 'OWNER' ? 'OWNER' : raw.role === 'MANAGER' ? 'MANAGER' : 'MEMBER' };
 		else if (t === 'google_account') out[k] = { type: t };
+		else if (t === 'okta_group' || t === 'okta_app' || t === 'authentik_group' || t === 'entra_group') out[k] = { type: t, id: str(raw.id), name: str(raw.name) };
 	}
 	return out;
 }

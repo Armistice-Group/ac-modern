@@ -5,10 +5,11 @@
 	import ResourceIcon from './ResourceIcon.svelte';
 	import Switch from './Switch.svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
+	import { INTEGRATIONS, TARGET_KINDS } from '#lib/integrations.ts';
 	import { toast } from '#lib/client/state.svelte.ts';
 	import { APPROVAL_LABEL, DURATIONS, HUES } from '#lib/format.ts';
 	import { generateSecret } from '#lib/secret.ts';
-	import type { ApprovalPolicy, Resource } from '#lib/types.ts';
+	import type { ApprovalPolicy, IntegrationKind, Resource } from '#lib/types.ts';
 
 	type P = { id: string; name: string; email: string };
 	let {
@@ -18,7 +19,7 @@
 		origin,
 		integrations = []
 	}: { resource?: Resource | null; people: P[]; defaultApproval?: ApprovalPolicy; origin: string; integrations?: string[] } = $props();
-	type Map = { type: string; team?: string; group?: string; role?: string };
+	type Map = { type: string; team?: string; group?: string; role?: string; id?: string; name?: string };
 
 	const TEMPLATES: Record<string, { category: string; color: string; roles: { name: string; description: string; privileged?: boolean }[] }> = {
 		GitHub: { category: 'engineering', color: 'slate', roles: [{ name: 'Member', description: 'Read and write to team repositories' }, { name: 'Owner', description: 'Full admin of the organisation', privileged: true }] },
@@ -70,10 +71,28 @@
 	});
 	function useIntegration(kind: string) {
 		f.fulfillment = 'integration';
-		f.integration = kind as 'github' | 'google';
+		f.integration = kind as IntegrationKind;
 		// Sensible starting points: privileged GitHub levels as org owner, Google levels as groups.
 		for (const role of f.roles)
-			if (!role.map.type?.startsWith(kind)) role.map = kind === 'github' ? { type: 'github_org', role: role.privileged ? 'admin' : 'member' } : { type: 'google_group', group: '', role: 'MEMBER' };
+			if (!role.map.type?.startsWith(kind))
+				role.map =
+					kind === 'github' ? { type: 'github_org', role: role.privileged ? 'admin' : 'member' } : kind === 'google' ? { type: 'google_group', group: '', role: 'MEMBER' } : { type: `${kind}_group`, id: '', name: '' };
+	}
+
+	// Groups (and Okta apps) offered by the connected IdP.
+	let targets = $state<Record<string, { groups: { id: string; name: string }[]; apps?: { id: string; name: string }[]; error?: string }>>({});
+	$effect(() => {
+		const k = f.integration;
+		if (f.fulfillment !== 'integration' || !k || !TARGET_KINDS.includes(k) || targets[k]) return;
+		targets[k] = { groups: [] };
+		api.get<{ groups: { id: string; name: string }[]; apps?: { id: string; name: string }[] }>(`/api/integrations/${k}/targets`)
+			.then((t) => (targets[k] = t))
+			.catch((err) => (targets[k] = { groups: [], error: errorMessage(err) }));
+	});
+	function pick(role: { map: Map }, type: string, id: string) {
+		const t = targets[f.integration];
+		const list = type === 'okta_app' ? t?.apps : t?.groups;
+		role.map = { type, id, name: list?.find((x) => x.id === id)?.name ?? '' };
 	}
 
 	function move(i: number, d: number) {
@@ -236,14 +255,15 @@
 					{#each integrations as k (k)}
 						<label class="flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-[0.8125rem] {f.fulfillment === 'integration' && f.integration === k ? 'border-primary/60 bg-primary-soft' : 'border-border hover:bg-accent/50'}">
 							<input type="radio" class="mt-0.5 accent-[var(--primary)]" name="integration" checked={f.fulfillment === 'integration' && f.integration === k} onchange={() => useIntegration(k)} />
-							<span><span class="flex items-center gap-1.5 font-medium"><Plug class="size-3.5" />{k === 'github' ? 'GitHub' : 'Google Workspace'}</span><span class="block text-xs text-muted-foreground">{k === 'github' ? 'Adds and removes org members and team members.' : 'Adds and removes group members; suspends accounts.'}</span></span>
+							<span><span class="flex items-center gap-1.5 font-medium"><Plug class="size-3.5" />{INTEGRATIONS[k as IntegrationKind].name}</span><span class="block text-xs text-muted-foreground">{INTEGRATIONS[k as IntegrationKind].summary}</span></span>
 						</label>
 					{/each}
 				</div>
 			{/if}
 			{#if f.fulfillment === 'integration'}
 				<div class="mt-4 space-y-2">
-					<p class="label">What each level means in {f.integration === 'github' ? 'GitHub' : 'Google Workspace'}</p>
+					<p class="label">What each level means in {f.integration ? INTEGRATIONS[f.integration].name : ''}</p>
+					{#if f.integration && targets[f.integration]?.error}<p class="text-xs text-danger">Couldn’t list groups: {targets[f.integration].error}</p>{/if}
 					{#each f.roles as role, i (i)}
 						<div class="flex flex-wrap items-center gap-2">
 							<span class="w-36 shrink-0 truncate text-[0.8125rem] font-medium">{role.name || `Level ${i + 1}`}</span>
@@ -260,6 +280,23 @@
 										<input class="input w-48 font-mono text-xs" placeholder="team-slug" bind:value={role.map.team} />
 									{/if}
 									<select class="input w-36" bind:value={role.map.role}><option value="member">as member</option><option value="maintainer">as maintainer</option></select>
+								{/if}
+							{:else if f.integration && TARGET_KINDS.includes(f.integration)}
+								{@const t = targets[f.integration]}
+								{#if f.integration === 'okta'}
+									<select class="input w-32" bind:value={() => role.map.type, (v) => (role.map = { type: v, id: '', name: '' })}>
+										<option value="okta_group">Group</option>
+										<option value="okta_app">App</option>
+									</select>
+								{/if}
+								{@const list = role.map.type === 'okta_app' ? (t?.apps ?? []) : (t?.groups ?? [])}
+								{#if list.length}
+									<select class="input w-64" value={role.map.id ?? ''} onchange={(e) => pick(role, role.map.type, e.currentTarget.value)}>
+										<option value="">Choose {role.map.type === 'okta_app' ? 'an app' : 'a group'}…</option>
+										{#each list as x (x.id)}<option value={x.id}>{x.name}</option>{/each}
+									</select>
+								{:else}
+									<input class="input w-64 font-mono text-xs" placeholder="{role.map.type === 'okta_app' ? 'App' : 'Group'} ID" bind:value={role.map.id} />
 								{/if}
 							{:else}
 								<select class="input w-40" bind:value={() => role.map.type, (v) => (role.map = v === 'google_account' ? { type: 'google_account' } : { type: 'google_group', group: role.map.group ?? '', role: 'MEMBER' })}>

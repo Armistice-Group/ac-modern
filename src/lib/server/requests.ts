@@ -698,19 +698,37 @@ async function automate(db: Db, orgId: string, req: AccessRequest, resource: Res
 	const level = resource.integrationMap[req.role.id];
 	if (!level) throw new Error(`“${req.role.name}” isn’t mapped to anything in ${resource.integration}`);
 	const { getIntegration } = await import('./integrations.ts');
-	if (resource.integration === 'github') {
-		const cfg = await getIntegration<{ org: string; token: string }>(db, orgId, 'github');
-		if (!cfg) throw new Error('GitHub isn’t connected (Settings → Integrations)');
-		const gh = await import('./idp/github.ts');
-		const login = (await db.get<{ github_login: string }>('SELECT github_login FROM users WHERE id = ?', [req.user.id]))?.github_login ?? '';
-		const who = { email: req.user.email, login };
-		return req.kind === 'grant' ? gh.githubGrant(cfg, level as never, who, httpFetch) : gh.githubRevoke(cfg, level as never, who, httpFetch);
-	}
-	if (resource.integration === 'google') {
-		const cfg = await getIntegration<{ serviceAccountJson: string; adminEmail: string }>(db, orgId, 'google');
-		if (!cfg) throw new Error('Google Workspace isn’t connected (Settings → Integrations)');
-		const g = await import('./idp/google.ts');
-		return req.kind === 'grant' ? g.googleGrant(cfg, level as never, req.user.email, httpFetch) : g.googleRevoke(cfg, level as never, req.user.email, httpFetch);
+	const kind = resource.integration;
+	if (!kind) throw new Error('No integration is set for this resource');
+	const cfg = await getIntegration<Record<string, string>>(db, orgId, kind);
+	const { INTEGRATIONS } = await import('#lib/integrations.ts');
+	if (!cfg) throw new Error(`${INTEGRATIONS[kind].name} isn’t connected (Settings → Integrations)`);
+	const grant = req.kind === 'grant';
+	const email = req.user.email;
+	const lv = level as never;
+	switch (kind) {
+		case 'github': {
+			const gh = await import('./idp/github.ts');
+			const login = (await db.get<{ github_login: string }>('SELECT github_login FROM users WHERE id = ?', [req.user.id]))?.github_login ?? '';
+			const who = { email, login };
+			return grant ? gh.githubGrant(cfg as never, lv, who, httpFetch) : gh.githubRevoke(cfg as never, lv, who, httpFetch);
+		}
+		case 'google': {
+			const g = await import('./idp/google.ts');
+			return grant ? g.googleGrant(cfg as never, lv, email, httpFetch) : g.googleRevoke(cfg as never, lv, email, httpFetch);
+		}
+		case 'okta': {
+			const o = await import('./idp/okta.ts');
+			return grant ? o.oktaGrant(cfg as never, lv, email, httpFetch) : o.oktaRevoke(cfg as never, lv, email, httpFetch);
+		}
+		case 'authentik': {
+			const a = await import('./idp/authentik.ts');
+			return grant ? a.authentikGrant(cfg as never, lv, email, httpFetch) : a.authentikRevoke(cfg as never, lv, email, httpFetch);
+		}
+		case 'entra': {
+			const e = await import('./idp/entra.ts');
+			return grant ? e.entraGrant(cfg as never, lv, email, httpFetch) : e.entraRevoke(cfg as never, lv, email, httpFetch);
+		}
 	}
 	throw new Error('No automatic setup is configured');
 }
@@ -732,7 +750,8 @@ export async function runAutomation(db: Db, orgId: string, requestId: string, or
 		error = (err as Error).message;
 	}
 	const fx = effects();
-	const how = resource.fulfillment === 'webhook' ? 'provisioning webhook' : resource.integration === 'github' ? 'GitHub integration' : 'Google Workspace integration';
+	const { INTEGRATIONS } = await import('#lib/integrations.ts');
+	const how = resource.fulfillment === 'webhook' || !resource.integration ? 'provisioning webhook' : `${INTEGRATIONS[resource.integration].name} integration`;
 	if (!error) {
 		await complete(db, { orgId, userId: null, admin: true }, req.id, note, fx);
 	} else {

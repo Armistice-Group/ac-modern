@@ -12,7 +12,9 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"test": "node --no-warnings --experimental-strip-types --test tests/*.test.ts",
 		"seed": "node --no-warnings --experimental-strip-types scripts/seed.ts",
-		"screenshots": "node scripts/screenshots.mjs"
+		"screenshots": "node scripts/screenshots.mjs",
+		"docs:openapi": "node --no-warnings --experimental-strip-types scripts/openapi.ts",
+		"docs:dev": "pnpm docs:openapi && cd docs && npx --yes mint@latest dev"
 	},
 	"imports": {
 		"#lib/*": "./src/lib/*"

@@ -1,13 +1,17 @@
 export type Role = 'owner' | 'admin' | 'member';
 export type ApprovalPolicy = 'none' | 'manager' | 'approvers' | 'manager_then_approvers';
 export type Fulfillment = 'manual' | 'webhook' | 'integration';
-export type IntegrationKind = 'github' | 'google';
+export type IntegrationKind = 'github' | 'google' | 'okta' | 'authentik' | 'entra';
 /** What an access level means in the connected system. */
 export type LevelMapping =
 	| { type: 'github_org'; role: 'member' | 'admin' }
 	| { type: 'github_team'; team: string; role: 'member' | 'maintainer' }
 	| { type: 'google_group'; group: string; role: 'MEMBER' | 'MANAGER' | 'OWNER' }
-	| { type: 'google_account' };
+	| { type: 'google_account' }
+	| { type: 'okta_group'; id: string; name: string }
+	| { type: 'okta_app'; id: string; name: string }
+	| { type: 'authentik_group'; id: string; name: string }
+	| { type: 'entra_group'; id: string; name: string };
 export type RequestStatus = 'pending_approval' | 'pending_fulfillment' | 'completed' | 'denied' | 'cancelled';
 export type RequestKind = 'grant' | 'revoke';
 /** Why a revoke request exists. Grant requests are always 'request'. */

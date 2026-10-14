@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/Armistice-Group/ac-modern/actions/workflows/ci.yml"><img src="https://github.com/Armistice-Group/ac-modern/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-7c3aed" alt="License: Apache-2.0"></a>
-  <a href="docs/"><img src="https://img.shields.io/badge/docs-Mintlify-7c3aed" alt="Docs"></a>
+  <a href="https://ac-modern.mintlify.app"><img src="https://img.shields.io/badge/docs-ac--modern.mintlify.app-7c3aed" alt="Docs"></a>
 </p>
 
 ![Overview](docs/screenshots/overview.png)
@@ -133,7 +133,7 @@ docker compose up -d
 # open http://<host>:3040 and create your organisation
 ```
 
-The image is `ghcr.io/armistice-group/ac-modern` (linux/amd64 and linux/arm64), built from `main` and from `v*` tags. One container, no other services needed. The first visit opens the setup wizard, which creates your organisation and its owner; set `ACM_ADMIN_EMAIL` and `ACM_ADMIN_PASSWORD` to create them on first start instead. Locked out? See [account recovery](docs/self-hosting/account-recovery.mdx): reset links, and `docker exec ac-modern ac-modern reset-password you@example.com`. Data lives in a SQLite file in the `/data` volume, with a generated `secret.key` that encrypts stored secrets (Slack URL, webhook signing keys). Back up both, or set `ACM_SECRET_KEY`. To use Postgres instead, set `ACM_DATABASE_URL=postgres://…` (there's a commented service in `compose.yaml`). All settings are in [`.env.example`](.env.example).
+The image is `ghcr.io/armistice-group/ac-modern` (linux/amd64 and linux/arm64), built from `main` and from `v*` tags. One container, no other services needed. The first visit opens the setup wizard, which creates your organisation and its owner; set `ACM_ADMIN_EMAIL` and `ACM_ADMIN_PASSWORD` to create them on first start instead. Locked out? See [account recovery](https://ac-modern.mintlify.app/self-hosting/account-recovery): reset links, and `docker exec ac-modern ac-modern reset-password you@example.com`. Data lives in a SQLite file in the `/data` volume, with a generated `secret.key` that encrypts stored secrets (Slack URL, webhook signing keys). Back up both, or set `ACM_SECRET_KEY`. To use Postgres instead, set `ACM_DATABASE_URL=postgres://…` (there's a commented service in `compose.yaml`). All settings are in [`.env.example`](.env.example).
 
 ## Hosted (cloud) mode
 
@@ -187,7 +187,7 @@ Code map: `src/lib/server/requests.ts` is the workflow (approval steps, fulfillm
 
 ## Documentation
 
-The full docs are a [Mintlify](https://mintlify.com) site in [`docs/`](docs/): setup, guides, audit and compliance, identity, integrations, self-hosting and the API reference. Preview it with `pnpm docs:dev`.
+Read the docs at **[ac-modern.mintlify.app](https://ac-modern.mintlify.app)**: setup, guides, audit and compliance, identity, integrations, self-hosting and the API reference. They're a [Mintlify](https://mintlify.com) site built from [`docs/`](docs/) on every push to `main`; preview locally with `pnpm docs:dev`.
 
 ## License
 

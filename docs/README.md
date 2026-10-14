@@ -33,3 +33,5 @@ Check links before publishing:
 ```sh
 npx mint broken-links
 ```
+
+Published at https://ac-modern.mintlify.app (Mintlify builds it from `docs/` on every push to `main`).

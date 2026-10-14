@@ -59,7 +59,8 @@ jobs:
           labels: |
             org.opencontainers.image.title=ac-modern
             org.opencontainers.image.version=${{ steps.ver.outputs.version }}
-            org.opencontainers.image.description=A modern, self-hosted Postgres console for the homelab
+            org.opencontainers.image.description=Access requests, approvals, reviews and audit evidence for small teams
+            org.opencontainers.image.licenses=FSL-1.1-ALv2
       - uses: docker/build-push-action@v7
         with:
           context: .

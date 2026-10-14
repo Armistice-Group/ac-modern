@@ -4,7 +4,7 @@
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-/* Palette follows Arcane: a violet primary (hue 292) over faintly violet-tinted neutrals. */
+/* A violet primary (hue 292) over faintly violet-tinted neutrals. */
 :root {
 	--background: oklch(99% 0.005 292);
 	--foreground: oklch(14.5% 0 0);
@@ -155,7 +155,7 @@
 }
 
 @layer components {
-	/* Buttons follow Arcane's: rounded-xl, soft tinted shadows, press-to-shrink, 3px focus ring. */
+	/* Buttons: rounded-xl, soft tinted shadows, press-to-shrink, 3px focus ring. */
 	.btn {
 		@apply relative inline-flex h-9 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-xl px-4 text-[0.8125rem] font-medium whitespace-nowrap outline-none transition-all duration-200 select-none active:scale-[0.97] focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 has-[>svg]:px-3.5 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0;
 	}

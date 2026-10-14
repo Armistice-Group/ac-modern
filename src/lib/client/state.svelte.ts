@@ -1,5 +1,5 @@
 /**
- * Shared client UI state for the modern-homelab-ui theme: toasts, theme toggle and the
+ * Shared client UI state: toasts, theme toggle and the
  * promise-based confirm dialog. Mount <Toaster /> and <ConfirmHost /> once in the root layout.
  * Import path in components: '#lib/client/state.svelte.ts' (copy this file there, or merge).
  */

@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/Armistice-Group/ac-modern/actions/workflows/ci.yml"><img src="https://github.com/Armistice-Group/ac-modern/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-7c3aed" alt="License: Apache-2.0"></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-7c3aed" alt="License: FSL-1.1-ALv2"></a>
   <a href="https://ac-modern.mintlify.app"><img src="https://img.shields.io/badge/docs-ac--modern.mintlify.app-7c3aed" alt="Docs"></a>
 </p>
 
@@ -181,7 +181,7 @@ pnpm screenshots                           # regenerates docs/screenshots from d
 pnpm docs:dev                              # Mintlify docs at http://localhost:3000 (regenerates the API reference first)
 ```
 
-Stack: SvelteKit (adapter-node), Svelte 5, Tailwind 4, TypeScript, Node 26 (built-in `node:sqlite`; 24+ works) or `pg`. The UI uses the same theme as pg·modern and octo·modern.
+Stack: SvelteKit (adapter-node), Svelte 5, Tailwind 4, TypeScript, Node 26 (built-in `node:sqlite`; 24+ works) or `pg`.
 
 Code map: `src/lib/server/requests.ts` is the workflow (approval steps, fulfillment, revocation, webhooks), `grants.ts` covers grants, expiry and offboarding, `reviews.ts` the review campaigns, `db.ts` the SQLite/Postgres layer, and `schema.ts` the migrations.
 
@@ -191,4 +191,6 @@ Read the docs at **[ac-modern.mintlify.app](https://ac-modern.mintlify.app)**: s
 
 ## License
 
-Apache-2.0
+[Functional Source License 1.1, Apache 2.0 future license](LICENSE.md) (FSL-1.1-ALv2).
+
+You can read, run, self-host and modify ac·modern for your own organisation, including commercially, and contribute changes back. You may not offer it, or something built from it, as a competing product or service, such as a hosted access-request platform. Each release becomes Apache-2.0 two years after it's published.

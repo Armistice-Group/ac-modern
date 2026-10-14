@@ -2,7 +2,7 @@
 	"name": "ac-modern",
 	"private": true,
 	"version": "0.1.0",
-	"license": "Apache-2.0",
+	"license": "FSL-1.1-ALv2",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",

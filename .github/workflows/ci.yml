@@ -1,8 +1,11 @@
 name: CI
 
-# Runs on the Armistice self-hosted runners (same labels as pwnbook):
+# Pushes and pull requests from branches in this repo run on the Armistice self-hosted
+# runners (same labels as pwnbook):
 #   self-hosted         checks, tests, build
 #   [self-hosted, x64]  anything that runs Docker containers (the Postgres service)
+# Pull requests from forks run on GitHub-hosted runners instead: the repo is public, and
+# code from a fork must never run on our machines.
 on:
   pull_request:
   push:
@@ -19,7 +22,7 @@ concurrency:
 jobs:
   check:
     name: Type-check, test (SQLite) and build
-    runs-on: self-hosted
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || 'self-hosted' }}
     timeout-minutes: 20
     steps:
       # Docker jobs on the shared runner can leave root-owned files behind.
@@ -42,7 +45,7 @@ jobs:
 
   test-postgres:
     name: Test (Postgres)
-    runs-on: [self-hosted, x64]
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || fromJSON('["self-hosted", "x64"]') }}
     timeout-minutes: 20
     services:
       postgres:

@@ -164,19 +164,6 @@
             "href": "/api-reference/introduction"
           }
         ]
-      },
-      {
-        "header": "Family",
-        "items": [
-          {
-            "label": "pg·modern",
-            "href": "https://github.com/vitafortis/pg-modern"
-          },
-          {
-            "label": "octo·modern",
-            "href": "https://github.com/vitafortis/octo-modern"
-          }
-        ]
       }
     ]
   }

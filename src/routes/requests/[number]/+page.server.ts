@@ -2,7 +2,8 @@ import { error } from '@sveltejs/kit';
 import { listPeople } from '#lib/server/accounts.ts';
 import { db } from '#lib/server/db.ts';
 import { requestTimeline } from '#lib/server/events.ts';
-import { actor, ctx } from '#lib/server/http.ts';
+import { ticket } from '#lib/server/evidence.ts';
+import { actor, ctx, isAdmin } from '#lib/server/http.ts';
 import { abilities, getRequest, stepsFor } from '#lib/server/requests.ts';
 import { getResource } from '#lib/server/resources.ts';
 import type { PageServerLoad } from './$types';
@@ -24,7 +25,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	return {
 		req,
 		resource: { id: resource.id, name: resource.name, url: resource.url, color: resource.color, approval: resource.approval, fulfillment: resource.fulfillment, webhookUrl: resource.webhookUrl },
-		steps: stepsFor(resource.approval),
+		steps: stepsFor(req.policy),
+		evidence: await ticket(d, c.org.id, req.number).then((t) => ({ approvals: t.approvals, flags: t.flags, snapshot: t.snapshot })),
+		admin: isAdmin(c),
 		can: { approve: can.approve, fulfill: can.fulfill, cancel: can.cancel, comment: can.comment },
 		approvers: pick(can.approverIds),
 		approverVia: can.approverVia,

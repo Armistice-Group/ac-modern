@@ -4,7 +4,15 @@ export type Fulfillment = 'manual' | 'webhook';
 export type RequestStatus = 'pending_approval' | 'pending_fulfillment' | 'completed' | 'denied' | 'cancelled';
 export type RequestKind = 'grant' | 'revoke';
 /** Why a revoke request exists. Grant requests are always 'request'. */
-export type RequestReason = 'request' | 'expired' | 'review' | 'offboarding' | 'manual';
+export type RequestReason = 'request' | 'expired' | 'review' | 'offboarding' | 'transfer' | 'manual';
+/**
+ * What kind of change a request is, for audit sampling: access for a new hire, a transfer
+ * between teams, a different level on a resource they already use, a resource they didn't
+ * have, more time on access they hold, or a removal.
+ */
+export type RequestCategory = 'new_hire' | 'transfer' | 'change' | 'new_access' | 'extension' | 'removal';
+/** In what role someone approved a step. */
+export type ApprovalCapacity = 'manager' | 'system_owner' | 'approver' | 'admin_fallback' | 'admin_override' | 'self' | '';
 export type GrantStatus = 'active' | 'pending_revoke' | 'revoked';
 export type GrantSource = 'request' | 'manual' | 'import';
 
@@ -23,6 +31,10 @@ export interface OrgSettings {
 	allowOnBehalf?: boolean;
 	/** Days before expiry to remind the person who holds the access. */
 	expiryReminderDays?: number;
+	/** Privileged access levels always need a system owner/approver step, whatever the resource's policy. Default on. */
+	requirePrivilegedApproval?: boolean;
+	/** Admins may approve on behalf of the designated approver (recorded as an override). Default off. */
+	allowAdminOverride?: boolean;
 }
 
 export interface SessionUser {
@@ -58,6 +70,8 @@ export interface ResourceRole {
 	id: string;
 	name: string;
 	description: string;
+	/** Admin-level or sensitive (owner, write to production…): always needs an owner/approver. */
+	privileged: boolean;
 }
 
 export interface Resource {
@@ -86,6 +100,11 @@ export interface AccessRequest {
 	number: number;
 	kind: RequestKind;
 	reason: RequestReason;
+	category: RequestCategory;
+	privileged: boolean;
+	/** The approval policy in force when the request was made. */
+	policy: ApprovalPolicy;
+	batchId: string | null;
 	status: RequestStatus;
 	step: number;
 	requester: SessionUser | null;
@@ -151,4 +170,13 @@ export interface ReviewItem {
 export interface ProblemInfo {
 	message: string;
 	hint?: string;
+}
+
+export interface Approval {
+	step: number;
+	decision: 'approved' | 'denied';
+	capacity: ApprovalCapacity;
+	approver: { id: string | null; name: string; email: string };
+	comment: string;
+	at: string;
 }

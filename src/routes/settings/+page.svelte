@@ -15,12 +15,16 @@
 	let allowOnBehalf = $state(false);
 	let reminder = $state(3);
 	let defaultApproval = $state<ApprovalPolicy>('approvers');
+	let requirePrivileged = $state(true);
+	let allowOverride = $state(false);
 	let busy = $state<string | null>(null);
 	$effect(() => {
 		name = data.name;
 		allowOnBehalf = data.allowOnBehalf;
 		reminder = data.expiryReminderDays;
 		defaultApproval = data.defaultApproval;
+		requirePrivileged = data.requirePrivilegedApproval;
+		allowOverride = data.allowAdminOverride;
 	});
 
 	async function save(section: string, body: Record<string, unknown>) {
@@ -90,6 +94,27 @@
 						{#each [1, 3, 7, 14] as d (d)}<option value={d}>{d} {d === 1 ? 'day' : 'days'} before</option>{/each}
 					</select>
 				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="card p-5" id="controls">
+		<h2 class="text-[0.9375rem] font-semibold tracking-tight">Approval controls</h2>
+		<p class="text-xs text-muted-foreground">What auditors look for: documented approval by the system owner or manager, and no way around it.</p>
+		<div class="mt-4 space-y-5">
+			<div class="flex items-start justify-between gap-4">
+				<div>
+					<p class="text-[0.8125rem] font-medium">Privileged levels always need the system owner</p>
+					<p class="text-xs text-muted-foreground">Levels marked privileged (admin, owner, write to production…) get a system owner / approver step even when the resource is pre-approved or manager-only.</p>
+				</div>
+				<Switch bind:checked={requirePrivileged} label="Require approval for privileged levels" onchange={(v) => save('priv', { requirePrivilegedApproval: v })} />
+			</div>
+			<div class="flex items-start justify-between gap-4">
+				<div>
+					<p class="text-[0.8125rem] font-medium">Admins can approve on an approver’s behalf</p>
+					<p class="text-xs text-muted-foreground">Off: only the manager, system owner or designated approvers can approve. On: admins can too, and it’s flagged as an override in the evidence.</p>
+				</div>
+				<Switch bind:checked={allowOverride} label="Allow admin override" onchange={(v) => save('override', { allowAdminOverride: v })} />
 			</div>
 		</div>
 	</section>

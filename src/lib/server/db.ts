@@ -133,17 +133,23 @@ async function openPostgres(url: string): Promise<Db> {
 	return root;
 }
 
+/** Arbitrary key for the Postgres advisory lock that serialises migrations across instances. */
+const MIGRATION_LOCK = 7_302_114_551;
+
 async function migrate(db: Db) {
-	await db.run('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)');
-	const done = new Set((await db.all<{ version: number }>('SELECT version FROM schema_migrations')).map((r) => Number(r.version)));
-	for (const [i, sql] of MIGRATIONS.entries()) {
-		const version = i + 1;
-		if (done.has(version)) continue;
-		await db.tx(async (tx) => {
+	// One transaction for the whole run. On Postgres an advisory lock makes other instances
+	// starting at the same time wait, then see the migrations already applied.
+	await db.tx(async (tx) => {
+		if (tx.kind === 'postgres') await tx.get('SELECT pg_advisory_xact_lock(?)', [MIGRATION_LOCK]);
+		await tx.run('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)');
+		const done = new Set((await tx.all<{ version: number }>('SELECT version FROM schema_migrations')).map((r) => Number(r.version)));
+		for (const [i, sql] of MIGRATIONS.entries()) {
+			const version = i + 1;
+			if (done.has(version)) continue;
 			for (const stmt of sql.split(/;\s*$/m).map((s) => s.trim()).filter(Boolean)) await tx.run(stmt);
 			await tx.run('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)', [version, new Date().toISOString()]);
-		});
-	}
+		}
+	});
 }
 
 export async function openDb(url = config.databaseUrl): Promise<Db> {

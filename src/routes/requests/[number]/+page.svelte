@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Check, X, Wrench, Ban, RotateCw, MessageSquare, ExternalLink, LoaderCircle, Circle, CircleCheck, CircleX, CircleDot, Webhook, Send } from '@lucide/svelte';
+	import { Check, X, Wrench, Ban, RotateCw, MessageSquare, ExternalLink, LoaderCircle, Circle, CircleCheck, CircleX, CircleDot, Webhook, Send, ShieldAlert, FileCheck2 } from '@lucide/svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import ResourceIcon from '#lib/components/ResourceIcon.svelte';
 	import StatusBadge from '#lib/components/StatusBadge.svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
 	import { confirmAction, toast } from '#lib/client/state.svelte.ts';
-	import { ago, date, dateTime, displayName, duration, REASON } from '#lib/format.ts';
+	import { ago, APPROVAL_LABEL, CAPACITY, CATEGORY, date, dateTime, displayName, duration, EXCEPTION_CAPACITIES, REASON } from '#lib/format.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -42,19 +42,24 @@
 		if (ok) act('cancel', {}, 'Cancelled');
 	}
 
-	type Stage = { label: string; detail?: string; state: 'done' | 'current' | 'todo' | 'failed' };
+	type Stage = { label: string; detail?: string; state: 'done' | 'current' | 'todo' | 'failed'; exception?: boolean };
 	const stages = $derived.by((): Stage[] => {
 		const out: Stage[] = [{ label: r.kind === 'grant' ? 'Requested' : 'Removal opened', detail: dateTime(r.createdAt), state: 'done' }];
 		const denied = r.status === 'denied';
 		if (r.kind === 'grant') {
 			data.steps.forEach((s, i) => {
 				const step = i + 1;
-				const decided = data.timeline.find((e) => (e.action === 'request.approved' || e.action === 'request.denied') && e.data.step === step);
-				const state: Stage['state'] = decided ? (decided.action === 'request.denied' ? 'failed' : 'done') : r.status === 'pending_approval' && r.step === step ? 'current' : r.step > step ? 'done' : 'todo';
+				const decided = data.evidence.approvals.find((a) => a.step === step);
+				const state: Stage['state'] = decided ? (decided.decision === 'denied' ? 'failed' : 'done') : r.status === 'pending_approval' && r.step === step ? 'current' : r.step > step ? 'done' : 'todo';
 				out.push({
-					label: s === 'manager' ? 'Manager approval' : 'Approval',
-					detail: decided ? `${displayName(decided.actor)} · ${ago(decided.at)}` : state === 'current' ? data.approvers.map(displayName).join(', ') : undefined,
-					state
+					label: s === 'manager' ? 'Manager approval' : 'System owner / approver',
+					detail: decided
+						? `${decided.approver.name || decided.approver.email} as ${CAPACITY[decided.capacity].toLowerCase()} · ${ago(decided.at)}`
+						: state === 'current'
+							? data.approvers.map(displayName).join(', ')
+							: undefined,
+					state,
+					exception: !!decided && EXCEPTION_CAPACITIES.includes(decided.capacity)
 				});
 			});
 		}
@@ -89,7 +94,10 @@
 
 <PageHeader title="{r.kind === 'revoke' ? 'Remove ' : ''}{r.resource.name} · {r.role.name}" description="#{r.number} · {r.kind === 'grant' ? 'for' : 'from'} {displayName(r.user)}">
 	{#snippet actions()}
+		<span class="badge {r.category === 'new_hire' ? 'badge-primary' : ''}">{CATEGORY[r.category]}</span>
+		{#if r.privileged}<span class="badge badge-warning"><ShieldAlert />Privileged</span>{/if}
 		<StatusBadge status={r.status} kind={r.kind} />
+		{#if data.admin}<a href="/evidence/print?numbers={r.number}" target="_blank" class="btn btn-secondary btn-sm"><FileCheck2 />Evidence</a>{/if}
 		{#if data.resource.url}<a href={data.resource.url} target="_blank" rel="noreferrer" class="btn btn-secondary btn-sm"><ExternalLink />Open {data.resource.name}</a>{/if}
 	{/snippet}
 </PageHeader>
@@ -147,7 +155,7 @@
 						</span>
 						<div class="min-w-0">
 							<p class="text-[0.8125rem] {s.state === 'todo' ? 'text-muted-foreground' : 'font-medium'}">{s.label}</p>
-							{#if s.detail}<p class="truncate text-xs text-muted-foreground">{s.state === 'current' ? 'Waiting on ' : ''}{s.detail}</p>{/if}
+							{#if s.detail}<p class="text-xs {s.exception ? 'text-danger' : 'text-muted-foreground'}">{s.state === 'current' ? 'Waiting on ' : ''}{s.detail}</p>{/if}
 						</div>
 					</li>
 				{/each}
@@ -185,6 +193,12 @@
 				{#if r.closedAt}
 					<dt class="text-muted-foreground">Closed</dt>
 					<dd title={r.closedAt}>{dateTime(r.closedAt)}</dd>
+				{/if}
+				<dt class="text-muted-foreground">Approval rule</dt>
+				<dd>{APPROVAL_LABEL[r.policy]}{#if r.privileged && r.policy !== data.resource.approval} <span class="text-muted-foreground">(privileged)</span>{/if}</dd>
+				{#if data.evidence.snapshot.manager}
+					<dt class="text-muted-foreground">Manager then</dt>
+					<dd class="truncate">{data.evidence.snapshot.manager.name || data.evidence.snapshot.manager.email}</dd>
 				{/if}
 				<dt class="text-muted-foreground">Set up</dt>
 				<dd>{data.resource.fulfillment === 'webhook' ? 'Webhook' : 'By hand'}</dd>

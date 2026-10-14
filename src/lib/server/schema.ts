@@ -189,5 +189,31 @@ CREATE TABLE events (
 );
 CREATE INDEX events_org_at ON events(org_id, at);
 CREATE INDEX events_request ON events(request_id)
+`,
+	// Audit evidence: classify requests, snapshot what was asked for and who approved in
+	// which capacity, so a ticket reads the same years later even if names change.
+	`
+ALTER TABLE resource_roles ADD COLUMN privileged INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE requests ADD COLUMN category TEXT NOT NULL DEFAULT 'new_access';
+ALTER TABLE requests ADD COLUMN privileged INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE requests ADD COLUMN policy TEXT NOT NULL DEFAULT 'approvers';
+ALTER TABLE requests ADD COLUMN batch_id TEXT;
+ALTER TABLE requests ADD COLUMN snapshot TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE approvals ADD COLUMN capacity TEXT NOT NULL DEFAULT '';
+ALTER TABLE approvals ADD COLUMN approver_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE approvals ADD COLUMN approver_email TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE request_batches (
+	id TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	kind TEXT NOT NULL,
+	user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	reason TEXT NOT NULL DEFAULT '',
+	created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+	created_at TEXT NOT NULL
+);
+
+CREATE INDEX requests_org_created ON requests(org_id, created_at);
+CREATE INDEX requests_batch ON requests(batch_id)
 `
 ];

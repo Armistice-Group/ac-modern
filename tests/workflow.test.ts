@@ -99,7 +99,7 @@ test('deny needs a reason; one-person team can self-approve', async () => {
 
 test('expiry opens a removal; offboarding removes everything; reviews revoke', async () => {
 	const w = await world();
-	const g1 = await recordGrant(w.db, w.actor(w.owner, true), { userId: w.dev.id, resourceId: w.resId, roleId: w.roles[0].id, expiresAt: '2000-01-01', note: '', source: 'import' });
+	const g1 = await recordGrant(w.db, w.actor(w.owner, true), { userId: w.dev.id, resourceId: w.resId, roleId: w.roles[0].id, expiresAt: '2000-01-01', note: 'baseline', source: 'import' });
 	const fx = effects();
 	assert.equal(await sweepExpiry(w.db, w.org.id, 3, fx), 1);
 	assert.equal((await listGrants(w.db, w.org.id, { userId: w.dev.id }))[0].status, 'pending_revoke');
@@ -107,8 +107,8 @@ test('expiry opens a removal; offboarding removes everything; reviews revoke', a
 	await complete(w.db, w.actor(w.it), revoke.id, '', effects());
 	assert.equal((await listGrants(w.db, w.org.id, { userId: w.dev.id })).length, 0);
 
-	await recordGrant(w.db, w.actor(w.owner, true), { userId: w.dev.id, resourceId: w.resId, roleId: w.roles[1].id, expiresAt: null, note: '', source: 'import' });
-	await recordGrant(w.db, w.actor(w.owner, true), { userId: w.manager.id, resourceId: w.resId, roleId: w.roles[0].id, expiresAt: null, note: '', source: 'import' });
+	await recordGrant(w.db, w.actor(w.owner, true), { userId: w.dev.id, resourceId: w.resId, roleId: w.roles[1].id, expiresAt: null, note: 'baseline', source: 'import' });
+	await recordGrant(w.db, w.actor(w.owner, true), { userId: w.manager.id, resourceId: w.resId, roleId: w.roles[0].id, expiresAt: null, note: 'baseline', source: 'import' });
 	const reviewId = await createReview(w.db, w.actor(w.owner, true), { name: 'Q4', dueAt: null, resourceIds: [] }, effects());
 	const items = await reviewItems(w.db, w.org.id, reviewId);
 	assert.equal(items.length, 2);

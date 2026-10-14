@@ -29,8 +29,8 @@ interface Row {
 
 async function hydrate(db: Db, orgId: string, rows: Row[]): Promise<Resource[]> {
 	if (!rows.length) return [];
-	const roles = await db.all<{ id: string; resource_id: string; name: string; description: string }>(
-		'SELECT id, resource_id, name, description FROM resource_roles WHERE org_id = ? AND archived = 0 ORDER BY position, name',
+	const roles = await db.all<{ id: string; resource_id: string; name: string; description: string; privileged: number }>(
+		'SELECT id, resource_id, name, description, privileged FROM resource_roles WHERE org_id = ? AND archived = 0 ORDER BY position, name',
 		[orgId]
 	);
 	const people = await db.all<{ resource_id: string; user_id: string; kind: string }>('SELECT resource_id, user_id, kind FROM resource_people WHERE org_id = ?', [orgId]);
@@ -50,7 +50,7 @@ async function hydrate(db: Db, orgId: string, rows: Row[]): Promise<Resource[]> 
 		defaultDays: r.default_days,
 		requestable: !!r.requestable,
 		archived: !!r.archived,
-		roles: roles.filter((x) => x.resource_id === r.id).map(({ id, name, description }) => ({ id, name, description })),
+		roles: roles.filter((x) => x.resource_id === r.id).map(({ id, name, description, privileged }) => ({ id, name, description, privileged: !!privileged })),
 		approverIds: people.filter((p) => p.resource_id === r.id && p.kind === 'approver').map((p) => p.user_id),
 		fulfillerIds: people.filter((p) => p.resource_id === r.id && p.kind === 'fulfiller').map((p) => p.user_id)
 	}));
@@ -91,7 +91,7 @@ export interface ResourceInput {
 	approverIds: string[];
 	fulfillerIds: string[];
 	/** Roles in display order. Existing roles keep their id; missing ones are archived. */
-	roles: { id?: string; name: string; description: string }[];
+	roles: { id?: string; name: string; description: string; privileged: boolean }[];
 }
 
 export function validateResource(input: ResourceInput) {
@@ -159,9 +159,9 @@ export async function saveResource(db: Db, orgId: string, id: string | null, inp
 		for (const [i, role] of input.roles.entries()) {
 			if (role.id && existing.some((e) => e.id === role.id)) {
 				keep.add(role.id);
-				await tx.run('UPDATE resource_roles SET name = ?, description = ?, position = ?, archived = 0 WHERE id = ?', [role.name, role.description, i, role.id]);
+				await tx.run('UPDATE resource_roles SET name = ?, description = ?, privileged = ?, position = ?, archived = 0 WHERE id = ?', [role.name, role.description, !!role.privileged, i, role.id]);
 			} else {
-				await tx.run('INSERT INTO resource_roles (id, org_id, resource_id, name, description, position) VALUES (?, ?, ?, ?, ?, ?)', [newId(), orgId, id, role.name, role.description, i]);
+				await tx.run('INSERT INTO resource_roles (id, org_id, resource_id, name, description, privileged, position) VALUES (?, ?, ?, ?, ?, ?, ?)', [newId(), orgId, id, role.name, role.description, !!role.privileged, i]);
 			}
 		}
 		// Roles stay in the table (grants and history point at them); removed ones are archived.
@@ -175,9 +175,12 @@ export async function setArchived(db: Db, orgId: string, id: string, archived: b
 }
 
 export async function getRole(db: Db, orgId: string, resourceId: string, roleId: string): Promise<ResourceRole> {
-	const r = await db.get<ResourceRole>('SELECT id, name, description FROM resource_roles WHERE org_id = ? AND resource_id = ? AND id = ? AND archived = 0', [orgId, resourceId, roleId]);
+	const r = await db.get<{ id: string; name: string; description: string; privileged: number }>(
+		'SELECT id, name, description, privileged FROM resource_roles WHERE org_id = ? AND resource_id = ? AND id = ? AND archived = 0',
+		[orgId, resourceId, roleId]
+	);
 	if (!r) throw badRequest('Pick an access level for this resource');
-	return r;
+	return { ...r, privileged: !!r.privileged };
 }
 
 /** Resource ids where the user is owner, approver or fulfiller: they can see who has access there. */
@@ -237,7 +240,8 @@ export function parseResourceInput(b: Record<string, unknown>): ResourceInput {
 		roles: roles.map((r: Record<string, unknown>) => ({
 			id: typeof r?.id === 'string' ? r.id : undefined,
 			name: typeof r?.name === 'string' ? r.name.trim().slice(0, 60) : '',
-			description: typeof r?.description === 'string' ? r.description.trim().slice(0, 300) : ''
+			description: typeof r?.description === 'string' ? r.description.trim().slice(0, 300) : '',
+			privileged: r?.privileged === true
 		}))
 	};
 }

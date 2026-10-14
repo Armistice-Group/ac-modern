@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { UserMinus, UserCheck, LoaderCircle } from '@lucide/svelte';
+	import { UserMinus, UserCheck, LoaderCircle, UserPlus, ArrowLeftRight } from '@lucide/svelte';
+	import AccessChangeDialog from '#lib/components/AccessChangeDialog.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import ResourceIcon from '#lib/components/ResourceIcon.svelte';
@@ -21,6 +22,9 @@
 	let title = $state('');
 	let managerIds = $state<string[]>([]);
 	let busy = $state(false);
+	let changing = $state<'onboarding' | 'transfer' | null>(null);
+	let changeOpen = $state(false);
+	const openChange = (k: 'onboarding' | 'transfer') => ((changing = k), (changeOpen = true));
 	$effect(() => {
 		role = p.role;
 		title = p.title;
@@ -75,16 +79,21 @@
 <PageHeader title={displayName(p)} description="{p.title ? `${p.title} · ` : ''}{p.email}">
 	{#snippet actions()}
 		{#if p.status === 'active'}
-			{#if !self}<button class="btn btn-danger-outline" onclick={offboard}><UserMinus />Offboard</button>{/if}
+			{#if !self}
+				<button class="btn btn-secondary" onclick={() => openChange('onboarding')}><UserPlus />Onboard</button>
+				<button class="btn btn-secondary" onclick={() => openChange('transfer')}><ArrowLeftRight />Transfer</button>
+				{#if data.admin}<button class="btn btn-danger-outline" onclick={offboard}><UserMinus />Offboard</button>{/if}
+			{/if}
 		{:else}
 			<span class="badge">Offboarded</span>
-			<button class="btn btn-secondary" onclick={reactivate}><UserCheck />Reactivate</button>
+			{#if data.admin}<button class="btn btn-secondary" onclick={reactivate}><UserCheck />Reactivate</button>{/if}
 		{/if}
 	{/snippet}
 </PageHeader>
 
 <div class="grid gap-6 px-8 pb-10 lg:grid-cols-[22rem_minmax(0,1fr)]">
 	<div class="space-y-4">
+		{#if data.admin}
 		<section class="card p-5">
 			<div class="mb-4 flex items-center gap-3">
 				<Avatar user={p} size="size-10" />
@@ -112,6 +121,12 @@
 				<button class="btn btn-primary w-full" disabled={!dirty || busy} onclick={save}>{#if busy}<LoaderCircle class="animate-spin" />{/if}Save</button>
 			</div>
 		</section>
+		{:else}
+			<section class="card p-5 text-xs text-muted-foreground">
+				<div class="mb-2 flex items-center gap-3"><Avatar user={p} size="size-10" /><span>{p.title || 'Reports to you'}</span></div>
+				As their manager you can onboard them and request changes when they move roles. Admins manage their profile.
+			</section>
+		{/if}
 		{#if data.reports.length}
 			<section class="card p-5">
 				<h2 class="mb-2 text-xs font-medium text-muted-foreground">Reports to them</h2>
@@ -149,3 +164,16 @@
 	</div>
 </div>
 
+
+{#if changing}
+	<AccessChangeDialog
+		bind:open={changeOpen}
+		kind={changing}
+		person={{ id: p.id, name: p.name, email: p.email, title: p.title, managerId: p.managerId }}
+		grants={data.grants}
+		resources={data.resources}
+		people={data.people}
+		othersAccess={data.othersAccess}
+		admin={data.admin}
+	/>
+{/if}

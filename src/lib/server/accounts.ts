@@ -26,11 +26,24 @@ export async function countOrgs(db: Db): Promise<number> {
 
 export async function createOrg(db: Db, name: string): Promise<Org> {
 	const base = slugify(name);
-	let slug = base;
-	for (let i = 2; await db.get('SELECT 1 FROM orgs WHERE slug = ?', [slug]); i++) slug = `${base}-${i}`;
-	const org = { id: newId(), name: name.trim(), slug };
-	await db.run('INSERT INTO orgs (id, name, slug, created_at) VALUES (?, ?, ?, ?)', [org.id, org.name, org.slug, now()]);
-	return org;
+	const taken = new Set(
+		(await db.all<{ slug: string }>('SELECT slug FROM orgs WHERE slug = ? OR slug LIKE ?', [base, `${base}-%`])).map((r) => r.slug)
+	);
+	let n = 1;
+	const next = () => {
+		let slug = n === 1 ? base : `${base}-${n}`;
+		while (taken.has(slug)) slug = `${base}-${++n}`;
+		taken.add(slug);
+		return slug;
+	};
+	const id = newId();
+	// ON CONFLICT: another sign-up may take the same slug between the read and the insert.
+	for (let attempt = 0; attempt < 20; attempt++) {
+		const slug = next();
+		const { changes } = await db.run('INSERT INTO orgs (id, name, slug, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (slug) DO NOTHING', [id, name.trim(), slug, now()]);
+		if (changes) return { id, name: name.trim(), slug };
+	}
+	throw conflict('Couldn’t pick a unique address for that organisation; try a different name');
 }
 
 export async function getOrg(db: Db, id: string): Promise<Org | undefined> {

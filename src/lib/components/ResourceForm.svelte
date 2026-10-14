@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import { GripVertical, Plus, Trash2, LoaderCircle, Webhook, Hand, Copy, ArrowUp, ArrowDown } from '@lucide/svelte';
+	import { ShieldAlert, GripVertical, Plus, Trash2, LoaderCircle, Webhook, Hand, Copy, ArrowUp, ArrowDown } from '@lucide/svelte';
 	import PeoplePicker from './PeoplePicker.svelte';
 	import ResourceIcon from './ResourceIcon.svelte';
 	import Switch from './Switch.svelte';
@@ -13,12 +13,12 @@
 	type P = { id: string; name: string; email: string };
 	let { resource = null, people, defaultApproval = 'approvers', origin }: { resource?: Resource | null; people: P[]; defaultApproval?: ApprovalPolicy; origin: string } = $props();
 
-	const TEMPLATES: Record<string, { category: string; color: string; roles: { name: string; description: string }[] }> = {
-		GitHub: { category: 'engineering', color: 'slate', roles: [{ name: 'Member', description: 'Read and write to team repositories' }, { name: 'Owner', description: 'Full admin of the organisation' }] },
-		AWS: { category: 'infrastructure', color: 'orange', roles: [{ name: 'ReadOnly', description: 'View resources in the console' }, { name: 'Developer', description: 'Deploy to staging' }, { name: 'Admin', description: 'Production break-glass' }] },
-		'Google Workspace': { category: 'productivity', color: 'blue', roles: [{ name: 'User', description: 'Email, Drive, Calendar' }, { name: 'Admin', description: 'Workspace admin console' }] },
+	const TEMPLATES: Record<string, { category: string; color: string; roles: { name: string; description: string; privileged?: boolean }[] }> = {
+		GitHub: { category: 'engineering', color: 'slate', roles: [{ name: 'Member', description: 'Read and write to team repositories' }, { name: 'Owner', description: 'Full admin of the organisation', privileged: true }] },
+		AWS: { category: 'infrastructure', color: 'orange', roles: [{ name: 'ReadOnly', description: 'View resources in the console' }, { name: 'Developer', description: 'Deploy to staging' }, { name: 'Admin', description: 'Production break-glass', privileged: true }] },
+		'Google Workspace': { category: 'productivity', color: 'blue', roles: [{ name: 'User', description: 'Email, Drive, Calendar' }, { name: 'Admin', description: 'Workspace admin console', privileged: true }] },
 		Figma: { category: 'design', color: 'pink', roles: [{ name: 'Viewer', description: 'View and comment' }, { name: 'Editor', description: 'Paid editor seat' }] },
-		'Production database': { category: 'data', color: 'green', roles: [{ name: 'Read-only', description: 'SELECT on replicas' }, { name: 'Read-write', description: 'Primary, time-boxed' }] }
+		'Production database': { category: 'data', color: 'green', roles: [{ name: 'Read-only', description: 'SELECT on replicas' }, { name: 'Read-write', description: 'Primary, time-boxed', privileged: true }] }
 	};
 
 	const initial = () => ({
@@ -36,7 +36,7 @@
 		requestable: resource?.requestable ?? true,
 		approverIds: [...(resource?.approverIds ?? [])],
 		fulfillerIds: [...(resource?.fulfillerIds ?? [])],
-		roles: resource?.roles.map((r) => ({ ...r })) ?? [{ id: undefined as string | undefined, name: 'Member', description: '' }]
+		roles: (resource?.roles.map((r) => ({ ...r })) ?? [{ id: undefined, name: 'Member', description: '', privileged: false }]) as { id?: string; name: string; description: string; privileged: boolean }[]
 	});
 	let f = $state(initial());
 	let owner = $state<string[]>(f.ownerId ? [f.ownerId] : []);
@@ -48,7 +48,7 @@
 		f.name = name;
 		f.category = t.category;
 		f.color = t.color;
-		f.roles = t.roles.map((r) => ({ id: undefined, ...r }));
+		f.roles = t.roles.map((r) => ({ id: undefined, ...r, privileged: !!r.privileged }));
 	}
 
 	function move(i: number, d: number) {
@@ -133,9 +133,9 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<h2 class="text-[0.9375rem] font-semibold tracking-tight">Access levels</h2>
-					<p class="text-xs text-muted-foreground">What people can ask for, lowest first.</p>
+					<p class="text-xs text-muted-foreground">What people can ask for, lowest first. Mark admin-level or sensitive ones as privileged: they always need a system owner or approver.</p>
 				</div>
-				<button type="button" class="btn btn-secondary btn-sm" onclick={() => f.roles.push({ id: undefined, name: '', description: '' })}><Plus />Add level</button>
+				<button type="button" class="btn btn-secondary btn-sm" onclick={() => f.roles.push({ id: undefined, name: '', description: '', privileged: false })}><Plus />Add level</button>
 			</div>
 			<div class="mt-4 space-y-2">
 				{#each f.roles as role, i (i)}
@@ -143,6 +143,9 @@
 						<GripVertical class="size-4 shrink-0 text-muted-foreground/50" />
 						<input class="input w-40 shrink-0" placeholder="Name" bind:value={role.name} required maxlength="60" />
 						<input class="input" placeholder="What it lets you do" bind:value={role.description} maxlength="300" />
+						<label class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-xs {role.privileged ? 'text-warning' : 'text-muted-foreground'}" title="Admin-level or sensitive: always needs a system owner or approver">
+							<input type="checkbox" class="accent-[var(--warning)]" bind:checked={role.privileged} /><ShieldAlert class="size-3.5" />Privileged
+						</label>
 						<button type="button" class="btn btn-ghost btn-icon btn-sm" title="Move up" disabled={i === 0} onclick={() => move(i, -1)}><ArrowUp /></button>
 						<button type="button" class="btn btn-ghost btn-icon btn-sm" title="Move down" disabled={i === f.roles.length - 1} onclick={() => move(i, 1)}><ArrowDown /></button>
 						<button type="button" class="btn btn-ghost btn-icon btn-sm hover:text-danger" title="Remove" disabled={f.roles.length === 1} onclick={() => f.roles.splice(i, 1)}><Trash2 /></button>

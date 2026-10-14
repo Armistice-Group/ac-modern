@@ -25,6 +25,15 @@ Small teams usually handle access in Slack DMs and a spreadsheet, or pay for a h
 | ![Request](docs/screenshots/request.png) | ![Catalog](docs/screenshots/catalog-light.png) |
 | ![Review](docs/screenshots/review.png) | ![Access](docs/screenshots/access.png) |
 
+## Audit evidence
+
+Built for the control auditors test as *"a process to request and approve user accounts and permissions"*, where they sample new-hire access, transfers, new admins and extra permissions (databases, repositories) and ask for the approval ticket.
+
+- **Every change is a request** with a business justification, including onboarding (one batch for a new hire's starting access) and transfers (new access requested and old access removed together, with a new manager and title).
+- **Documented approval from the system owner or manager.** Each approval records who approved, in what capacity (manager, system owner, designated approver, admin fallback, admin override, self) and when. Privileged levels (admin, owner, read-write to production) always need the system owner or an approver, even on pre-approved or manager-only resources. Admin overrides are off unless you allow them.
+- **Snapshots.** The person, their title and manager, the resource, its owner and the level are frozen when the request is made, so a ticket reads the same after renames and reorgs.
+- **Audit evidence page:** the population for any period (CSV), filterable by type (new hire, transfer, permission change, additional access, extension, removal), privileged-only and exceptions-only. It prints tickets one per page (save as PDF) with the approval table, provisioning after approval, full history and a SHA-256 fingerprint of the record. It also lists access recorded outside requests, ac·modern admin changes and control changes, and gives a written control description generated from your settings.
+
 ## Self-hosting
 
 ```sh

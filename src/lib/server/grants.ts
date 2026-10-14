@@ -102,6 +102,8 @@ export async function recordGrant(
 		[actor.orgId, input.userId]
 	);
 	if (!member) throw badRequest('That person isn’t a member');
+	// Recorded access skips the request process, so the evidence needs to say where it came from.
+	if (input.note.trim().length < 3) throw badRequest('Say where this access came from, e.g. “Granted before ac·modern, per IT sheet”');
 	if (input.expiresAt && Number.isNaN(Date.parse(input.expiresAt))) throw badRequest('Enter a valid expiry date');
 	return db.tx(async (tx) => {
 		if (await tx.get("SELECT 1 FROM grants WHERE org_id = ? AND user_id = ? AND role_id = ? AND status <> 'revoked'", [actor.orgId, input.userId, role.id])) {
@@ -117,8 +119,8 @@ export async function recordGrant(
 			actorId: actor.userId,
 			action: 'grant.recorded',
 			subject: resource.name,
-			summary: `Recorded existing access: ${member.name || member.email} has ${resource.name} (${role.name})`,
-			data: { grantId: id, note: input.note }
+			summary: `Recorded existing access: ${member.name || member.email} has ${resource.name} (${role.name})${role.privileged ? ' [privileged]' : ''}: “${input.note.trim()}”`,
+			data: { grantId: id, note: input.note, privileged: role.privileged }
 		});
 		return id;
 	});

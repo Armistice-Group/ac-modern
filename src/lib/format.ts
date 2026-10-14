@@ -1,4 +1,4 @@
-import type { RequestReason, RequestStatus, Role } from './types.ts';
+import type { ApprovalCapacity, RequestCategory, RequestReason, RequestStatus, Role } from './types.ts';
 
 export function displayName(u: { name: string; email: string } | null | undefined): string {
 	if (!u) return 'System';
@@ -66,8 +66,31 @@ export const REASON: Record<RequestReason, string> = {
 	expired: 'Expired',
 	review: 'Access review',
 	offboarding: 'Offboarding',
+	transfer: 'Transfer',
 	manual: 'Revoked by admin'
 };
+
+export const CATEGORY: Record<RequestCategory, string> = {
+	new_hire: 'New hire',
+	transfer: 'Transfer',
+	change: 'Permission change',
+	new_access: 'Additional access',
+	extension: 'Extension',
+	removal: 'Removal'
+};
+
+export const CAPACITY: Record<ApprovalCapacity, string> = {
+	manager: 'Manager',
+	system_owner: 'System owner',
+	approver: 'Designated approver',
+	admin_fallback: 'Admin (fallback)',
+	admin_override: 'Admin override',
+	self: 'Self-approved',
+	'': 'Approver'
+};
+
+/** Capacities an auditor would want explained. */
+export const EXCEPTION_CAPACITIES: ApprovalCapacity[] = ['admin_fallback', 'admin_override', 'self'];
 
 export const ROLE_LABEL: Record<Role, string> = { owner: 'Owner', admin: 'Admin', member: 'Member' };
 

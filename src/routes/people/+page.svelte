@@ -57,9 +57,9 @@
 
 <svelte:head><title>People · ac·modern</title></svelte:head>
 
-<PageHeader title="People" description="Everyone in {page.data.org?.name}. Set managers for manager approvals, and offboard people in one step.">
+<PageHeader title={data.admin ? 'People' : 'Your team'} description={data.admin ? `Everyone in ${page.data.org?.name}. Onboard new hires, handle transfers, and offboard people in one step.` : 'The people who report to you. Onboard new starters and request changes when they move roles.'}>
 	{#snippet actions()}
-		<button class="btn btn-primary" onclick={() => (inviting = true)}><UserPlus />Invite people</button>
+		{#if data.admin}<button class="btn btn-primary" onclick={() => (inviting = true)}><UserPlus />Invite people</button>{/if}
 	{/snippet}
 </PageHeader>
 
@@ -101,7 +101,7 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-border">
-					{#each shown as p (p.id)}
+					{#each shown.filter((p) => data.admin || p.id !== page.data.viewer?.id) as p (p.id)}
 						{@const m = manager(p.managerId)}
 						<tr class="relative transition-colors hover:bg-accent/30 {p.status !== 'active' ? 'opacity-55' : ''}">
 							<td class="px-4 py-2.5">

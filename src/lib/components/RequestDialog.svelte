@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import { LoaderCircle, ShieldCheck, Zap, UserCheck } from '@lucide/svelte';
+	import { LoaderCircle, ShieldCheck, ShieldAlert, Zap, UserCheck } from '@lucide/svelte';
 	import Dialog from './Dialog.svelte';
 	import ResourceIcon from './ResourceIcon.svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
@@ -55,6 +55,7 @@
 				})()
 			: []
 	);
+	const selectedRole = $derived(resource?.roles.find((r) => r.id === roleId));
 	const others = $derived(canRequestFor === 'all' ? people.filter((p) => p.id !== me) : people.filter((p) => canRequestFor.includes(p.id)));
 
 	async function submit(e: SubmitEvent) {
@@ -113,8 +114,9 @@
 						<label class="flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors {roleId === role.id ? 'border-primary/60 bg-primary-soft' : 'border-border hover:bg-accent/50'}">
 							<input type="radio" class="mt-0.5 accent-[var(--primary)]" name="role" value={role.id} bind:group={roleId} />
 							<span class="min-w-0">
-								<span class="block text-[0.8125rem] font-medium">{role.name}</span>
+								<span class="flex items-center gap-1.5 text-[0.8125rem] font-medium">{role.name}{#if role.privileged}<span class="badge badge-warning"><ShieldAlert />Privileged</span>{/if}</span>
 								{#if role.description}<span class="block text-xs text-muted-foreground">{role.description}</span>{/if}
+								{#if role.privileged && roleId === role.id}<span class="mt-1 block text-[0.6875rem] text-warning">Needs approval from the system owner or an approver{resource.approval === 'manager' || resource.approval === 'manager_then_approvers' ? ', after your manager' : ''}.</span>{/if}
 							</span>
 						</label>
 					{/each}
@@ -130,8 +132,8 @@
 			</div>
 
 			<div>
-				<label class="label" for="why">Why do you need it?{#if resource.approval === 'none'} <span class="font-normal">(optional)</span>{/if}</label>
-				<textarea id="why" class="input h-20 resize-none py-2" placeholder="e.g. Fixing the billing bug in ENG-142" bind:value={justification} required={resource.approval !== 'none'}></textarea>
+				<label class="label" for="why">Why do you need it?{#if resource.approval === 'none' && !selectedRole?.privileged} <span class="font-normal">(optional)</span>{/if}</label>
+				<textarea id="why" class="input h-20 resize-none py-2" placeholder="e.g. Fixing the billing bug in ENG-142" bind:value={justification} required={resource.approval !== 'none' || !!selectedRole?.privileged}></textarea>
 			</div>
 			{#if error}<p class="text-xs text-danger">{error}</p>{/if}
 		</form>

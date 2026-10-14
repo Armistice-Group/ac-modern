@@ -14,7 +14,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		mode: config.mode,
 		viewer: null as Viewer | null,
 		org: null as Org | null,
-		badges: { approve: 0, fulfill: 0, review: 0 }
+		badges: { approve: 0, fulfill: 0, review: 0 },
+		reports: 0
 	};
 	if (!locals.user) return base;
 	const viewer: Viewer = { ...locals.user, role: locals.role ?? 'member', orgs: locals.orgs };
@@ -25,6 +26,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		...base,
 		viewer,
 		org: locals.org,
-		badges: { approve: w.toApprove.length, fulfill: w.toFulfill.length, review: await pendingReviewCount(d, locals.org.id, locals.user.id) }
+		badges: { approve: w.toApprove.length, fulfill: w.toFulfill.length, review: await pendingReviewCount(d, locals.org.id, locals.user.id) },
+		reports: (await d.get<{ n: number }>("SELECT CAST(COUNT(*) AS INTEGER) AS n FROM members WHERE org_id = ? AND manager_id = ? AND status = 'active'", [locals.org.id, locals.user.id]))!.n
 	};
 };

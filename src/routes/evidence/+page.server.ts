@@ -1,0 +1,49 @@
+import { orgSettings } from '#lib/server/accounts.ts';
+import { db } from '#lib/server/db.ts';
+import { EXCEPTIONS, evidenceRows, outOfProcess } from '#lib/server/evidence.ts';
+import { adminCtx } from '#lib/server/http.ts';
+import { period } from '#lib/server/period.ts';
+import { listResources } from '#lib/server/resources.ts';
+import type { RequestCategory } from '#lib/types.ts';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ locals, url }) => {
+	const c = adminCtx(locals);
+	const d = await db();
+	const p = period(url);
+	const types = (url.searchParams.get('types') ?? '').split(',').filter(Boolean) as RequestCategory[];
+	const privileged = url.searchParams.get('privileged') === '1';
+	const exceptions = url.searchParams.get('exceptions') === '1';
+	const all = await evidenceRows(d, c.org.id, { from: p.from, to: p.to });
+	const shown = all.filter(
+		(r) =>
+			(!types.length || types.includes(r.request.category)) &&
+			(!privileged || r.request.privileged) &&
+			(!exceptions || r.flags.some((f) => EXCEPTIONS.includes(f)))
+	);
+	const resources = await listResources(d, c.org.id);
+	const settings = await orgSettings(d, c.org.id);
+	return {
+		period: { from: p.fromDate, to: p.toDate },
+		filters: { types, privileged, exceptions },
+		rows: shown.slice(0, 1000),
+		total: shown.length,
+		counts: {
+			all: all.length,
+			newHire: all.filter((r) => r.request.category === 'new_hire').length,
+			changes: all.filter((r) => r.request.category === 'transfer' || r.request.category === 'change').length,
+			privileged: all.filter((r) => r.request.privileged && r.request.kind === 'grant').length,
+			exceptions: all.filter((r) => r.flags.some((f) => EXCEPTIONS.includes(f))).length,
+			removals: all.filter((r) => r.request.kind === 'revoke').length
+		},
+		outside: await outOfProcess(d, c.org.id, p.from, p.to),
+		control: {
+			resources: resources.length,
+			preApproved: resources.filter((r) => r.approval === 'none').map((r) => r.name),
+			privilegedLevels: resources.flatMap((r) => r.roles.filter((x) => x.privileged).map((x) => `${r.name} ${x.name}`)),
+			requirePrivilegedApproval: settings.requirePrivilegedApproval !== false,
+			allowAdminOverride: !!settings.allowAdminOverride,
+			orgName: c.org.name
+		}
+	};
+};

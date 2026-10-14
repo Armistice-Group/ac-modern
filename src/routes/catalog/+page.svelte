@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Search, Zap, UserCheck, Clock, Plus, Boxes, ExternalLink } from '@lucide/svelte';
+	import { Search, Zap, UserCheck, Clock, Plus, Boxes, ExternalLink, ShieldAlert } from '@lucide/svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import ResourceIcon from '#lib/components/ResourceIcon.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
@@ -80,7 +80,7 @@
 					<div class="mt-3 flex flex-wrap gap-1">
 						{#each r.roles as role (role.id)}
 							{@const has = held.find((h) => h.roleId === role.id)}
-							<span class="badge {has ? 'badge-success' : ''}" title={role.description}>{role.name}{#if has}<span class="ml-0.5">✓</span>{/if}</span>
+							<span class="badge {has ? 'badge-success' : role.privileged ? 'badge-warning' : ''}" title={role.privileged ? `${role.description} (privileged: needs system owner approval)` : role.description}>{#if role.privileged && !has}<ShieldAlert />{/if}{role.name}{#if has}<span class="ml-0.5">✓</span>{/if}</span>
 						{/each}
 					</div>
 					<div class="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 pt-4 text-[0.6875rem] whitespace-nowrap text-muted-foreground">

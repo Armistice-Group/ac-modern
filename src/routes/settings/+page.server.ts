@@ -14,6 +14,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		allowOnBehalf: !!s.allowOnBehalf,
 		expiryReminderDays: s.expiryReminderDays ?? 3,
 		defaultApproval: s.defaultApproval ?? 'approvers',
+		requirePrivilegedApproval: s.requirePrivilegedApproval !== false,
+		allowAdminOverride: !!s.allowAdminOverride,
 		smtp: !!config.smtp,
 		database: d.kind,
 		mode: config.mode

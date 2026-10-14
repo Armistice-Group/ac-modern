@@ -12,6 +12,7 @@
 		Boxes,
 		Users,
 		ScrollText,
+		FileCheck2,
 		Settings,
 		Moon,
 		Sun,
@@ -43,7 +44,7 @@
 		if (window.innerWidth < 768) collapsed = true;
 	});
 
-	const bare = $derived(!data.org || ['/login', '/setup', '/signup'].includes(page.url.pathname) || page.url.pathname.startsWith('/invite/'));
+	const bare = $derived(!data.org || ['/login', '/setup', '/signup', '/evidence/print'].includes(page.url.pathname) || page.url.pathname.startsWith('/invite/'));
 	const admin = $derived(data.viewer?.role === 'owner' || data.viewer?.role === 'admin');
 
 	const main = $derived([
@@ -51,13 +52,15 @@
 		{ href: '/catalog', label: 'Request access', icon: PackagePlus },
 		{ href: '/requests', label: 'Requests', icon: Inbox, badge: data.badges.approve + data.badges.fulfill },
 		{ href: '/access', label: 'Access', icon: KeyRound },
-		{ href: '/reviews', label: 'Reviews', icon: ClipboardCheck, badge: data.badges.review }
+		{ href: '/reviews', label: 'Reviews', icon: ClipboardCheck, badge: data.badges.review },
+		...(!admin && data.reports ? [{ href: '/people', label: 'Your team', icon: Users }] : [])
 	]);
 	const manage = $derived(
 		admin
 			? [
 					{ href: '/resources', label: 'Resources', icon: Boxes },
 					{ href: '/people', label: 'People', icon: Users },
+					{ href: '/evidence', label: 'Audit evidence', icon: FileCheck2 },
 					{ href: '/audit', label: 'Audit log', icon: ScrollText },
 					{ href: '/settings', label: 'Settings', icon: Settings }
 				]

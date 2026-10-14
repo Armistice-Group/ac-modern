@@ -185,7 +185,7 @@
 	{/if}
 </div>
 
-<Dialog bind:open={recording} title="Record existing access" description="Already set up outside ac·modern? Record it so it shows up in reviews and offboarding.">
+<Dialog bind:open={recording} title="Record existing access" description="Already set up outside ac·modern? Record it so it shows up in reviews and offboarding. It skips approval, so it’s listed separately in the audit evidence.">
 	<form id="record-form" class="space-y-4" onsubmit={saveRecord}>
 		<div class="grid grid-cols-2 gap-3">
 			<div>
@@ -212,8 +212,8 @@
 				<input id="exp" class="input" type="date" bind:value={rec.expiresAt} />
 			</div>
 			<div>
-				<label class="label" for="note">Note <span class="font-normal">(optional)</span></label>
-				<input id="note" class="input" placeholder="e.g. from the IT sheet" bind:value={rec.note} />
+				<label class="label" for="note">Where it came from</label>
+				<input id="note" class="input" placeholder="e.g. Granted before ac·modern (IT sheet)" bind:value={rec.note} required minlength="3" />
 			</div>
 		</div>
 	</form>

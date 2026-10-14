@@ -26,8 +26,15 @@ export const PATCH = handler(async (event) => {
 		patch.managerId = m;
 	}
 	await updateMember(d, c.org.id, id, patch);
-	const changes = Object.keys(patch);
-	if (changes.length)
-		await record(d, { orgId: c.org.id, actorId: c.user.id, action: 'member.updated', subject: displayName(person), summary: `Updated ${displayName(person)}: ${changes.join(', ')}`, data: patch });
+	const changes: string[] = [];
+	if (patch.role && patch.role !== person.role) changes.push(`role ${person.role} → ${patch.role}`);
+	if (patch.title !== undefined && patch.title !== person.title) changes.push(`title “${patch.title}”`);
+	if (patch.managerId !== undefined && patch.managerId !== person.managerId) changes.push('manager');
+	if (changes.length) {
+		const data: Record<string, unknown> = { ...patch };
+		if (patch.role && patch.role !== person.role) data.role = { from: person.role, to: patch.role };
+		else delete data.role;
+		await record(d, { orgId: c.org.id, actorId: c.user.id, action: 'member.updated', subject: displayName(person), summary: `Updated ${displayName(person)}: ${changes.join(', ')}`, data });
+	}
 	return json(await getPerson(d, c.org.id, id));
 });

@@ -5,7 +5,7 @@ import { record } from './events.ts';
 import { badRequest, conflict, forbidden, notFound } from './http.ts';
 import type { Notice } from './notify.ts';
 import { getResource, getRole, webhookSecret } from './resources.ts';
-import type { AccessRequest, ApprovalPolicy, RequestReason, RequestStatus, Resource } from '#lib/types.ts';
+import type { AccessRequest, ApprovalCapacity, ApprovalPolicy, OrgSettings, RequestCategory, RequestReason, RequestStatus, Resource } from '#lib/types.ts';
 
 const now = () => new Date().toISOString();
 const DAY = 86_400_000;
@@ -34,6 +34,10 @@ interface Row {
 	number: number;
 	kind: 'grant' | 'revoke';
 	reason: RequestReason;
+	category: RequestCategory;
+	privileged: number;
+	policy: ApprovalPolicy;
+	batch_id: string | null;
 	status: RequestStatus;
 	step: number;
 	requester_id: string | null;
@@ -55,7 +59,7 @@ interface Row {
 	closed_at: string | null;
 }
 
-const SELECT = `SELECT q.id, q.number, q.kind, q.reason, q.status, q.step, q.requester_id, rq.email AS requester_email, rq.name AS requester_name,
+const SELECT = `SELECT q.id, q.number, q.kind, q.reason, q.category, q.privileged, q.policy, q.batch_id, q.status, q.step, q.requester_id, rq.email AS requester_email, rq.name AS requester_name,
 	q.user_id, u.email AS user_email, u.name AS user_name, q.resource_id, r.name AS resource_name, r.color AS resource_color,
 	q.role_id, rr.name AS role_name, q.grant_id, q.justification, q.duration_days, q.created_at, q.updated_at, q.closed_at
 	FROM requests q
@@ -69,6 +73,10 @@ const toRequest = (r: Row): AccessRequest => ({
 	number: Number(r.number),
 	kind: r.kind,
 	reason: r.reason,
+	category: r.category,
+	privileged: !!r.privileged,
+	policy: r.policy,
+	batchId: r.batch_id,
 	status: r.status,
 	step: Number(r.step),
 	requester: r.requester_id ? { id: r.requester_id, email: r.requester_email ?? '', name: r.requester_name ?? '' } : null,
@@ -90,6 +98,13 @@ export interface RequestFilter {
 	resourceIds?: string[];
 	statuses?: RequestStatus[];
 	kind?: 'grant' | 'revoke';
+	categories?: RequestCategory[];
+	privileged?: boolean;
+	batchId?: string;
+	/** Created at or after (ISO). */
+	from?: string;
+	/** Created before (ISO). */
+	to?: string;
 	q?: string;
 	limit?: number;
 }
@@ -106,6 +121,11 @@ export async function listRequests(db: Db, orgId: string, f: RequestFilter = {})
 	}
 	if (f.statuses?.length) where.push(`q.status IN (${f.statuses.map(() => '?').join(',')})`), params.push(...f.statuses);
 	if (f.kind) where.push('q.kind = ?'), params.push(f.kind);
+	if (f.categories?.length) where.push(`q.category IN (${f.categories.map(() => '?').join(',')})`), params.push(...f.categories);
+	if (f.privileged) where.push('q.privileged = 1');
+	if (f.batchId) where.push('q.batch_id = ?'), params.push(f.batchId);
+	if (f.from) where.push('q.created_at >= ?'), params.push(f.from);
+	if (f.to) where.push('q.created_at < ?'), params.push(f.to);
 	if (f.q) {
 		const q = `%${f.q.toLowerCase()}%`;
 		where.push('(LOWER(u.name) LIKE ? OR LOWER(u.email) LIKE ? OR LOWER(r.name) LIKE ? OR CAST(q.number AS TEXT) = ?)');
@@ -129,6 +149,15 @@ export function stepsFor(policy: ApprovalPolicy): ('manager' | 'approvers')[] {
 	return policy === 'none' ? [] : policy === 'manager' ? ['manager'] : policy === 'approvers' ? ['approvers'] : ['manager', 'approvers'];
 }
 
+/**
+ * The policy a request runs under. Privileged levels always get a system owner/approver
+ * step (unless the org turned that off): none → approvers, manager → manager then approvers.
+ */
+export function effectivePolicy(policy: ApprovalPolicy, privileged: boolean, settings: OrgSettings): ApprovalPolicy {
+	if (!privileged || settings.requirePrivilegedApproval === false) return policy;
+	return policy === 'none' ? 'approvers' : policy === 'manager' ? 'manager_then_approvers' : policy;
+}
+
 async function activeIds(db: Db, orgId: string, ids: string[]): Promise<string[]> {
 	if (!ids.length) return [];
 	const rows = await db.all<{ user_id: string }>(
@@ -144,8 +173,8 @@ async function activeIds(db: Db, orgId: string, ids: string[]): Promise<string[]
  * nobody else could (a one-person team); a missing manager or approver list falls back to
  * the resource owner, then to the organisation's admins.
  */
-export async function approversFor(db: Db, orgId: string, req: Pick<AccessRequest, 'user' | 'step'>, resource: Resource): Promise<{ ids: string[]; via: string }> {
-	const step = stepsFor(resource.approval)[req.step - 1];
+export async function approversFor(db: Db, orgId: string, req: Pick<AccessRequest, 'user' | 'step' | 'policy'>, resource: Resource): Promise<{ ids: string[]; via: string }> {
+	const step = stepsFor(req.policy)[req.step - 1];
 	if (!step) return { ids: [], via: '' };
 	const subject = req.user.id;
 	const candidates: [string[], string][] = [];
@@ -190,11 +219,12 @@ export async function abilities(db: Db, actor: Actor & { userId: string }, req: 
 	const steward = resource.ownerId === me || resource.approverIds.includes(me) || fulfillers.includes(me);
 	const pastApprover = !!(await db.get('SELECT 1 FROM approvals WHERE request_id = ? AND approver_id = ?', [req.id, me]));
 	const isApprover = approvers.ids.includes(me);
+	const { allowAdminOverride } = await orgSettings(db, actor.orgId);
 	const view = actor.admin || req.user.id === me || req.requester?.id === me || steward || isApprover || pastApprover;
 	const open = req.status === 'pending_approval' || req.status === 'pending_fulfillment';
 	return {
 		view,
-		approve: req.status === 'pending_approval' && (isApprover || (actor.admin && req.user.id !== me)),
+		approve: req.status === 'pending_approval' && (isApprover || (actor.admin && !!allowAdminOverride && req.user.id !== me)),
 		fulfill: req.status === 'pending_fulfillment' && (fulfillers.includes(me) || actor.admin),
 		cancel: open && (actor.admin || (req.kind === 'grant' && req.status === 'pending_approval' && (req.user.id === me || req.requester?.id === me))),
 		comment: view,
@@ -233,6 +263,35 @@ export interface NewRequest {
 	roleId: string;
 	justification: string;
 	durationDays: number | null;
+	/** Set by the onboarding and transfer flows; otherwise worked out from what they hold. */
+	category?: 'new_hire' | 'transfer';
+	batchId?: string | null;
+}
+
+/** New members count as new hires for this long (for requests made outside onboarding). */
+const NEW_HIRE_DAYS = 30;
+
+/**
+ * Who and what a request was about, frozen when it was made: names, titles and the
+ * manager can change later, the evidence shouldn't.
+ */
+async function snapshot(db: Db, orgId: string, userId: string, requesterId: string | null, resource: Resource, role: { name: string; privileged: boolean }) {
+	const person = async (id: string | null) =>
+		id ? db.get<{ name: string; email: string; title: string; manager_id: string | null }>(
+			'SELECT u.name, u.email, m.title, m.manager_id FROM users u LEFT JOIN members m ON m.user_id = u.id AND m.org_id = ? WHERE u.id = ?',
+			[orgId, id]
+		) : undefined;
+	const subject = await person(userId);
+	const manager = await person(subject?.manager_id ?? null);
+	const requester = await person(requesterId);
+	const owner = await person(resource.ownerId);
+	return {
+		user: { name: subject?.name ?? '', email: subject?.email ?? '', title: subject?.title ?? '' },
+		manager: manager ? { id: subject!.manager_id, name: manager.name, email: manager.email } : null,
+		requester: requester ? { id: requesterId, name: requester.name, email: requester.email } : null,
+		resource: { name: resource.name, owner: owner ? { id: resource.ownerId, name: owner.name, email: owner.email } : null, policy: resource.approval },
+		role: { name: role.name, privileged: role.privileged }
+	};
 }
 
 export async function createRequest(db: Db, actor: Actor & { userId: string }, input: NewRequest, fx: Effects): Promise<AccessRequest> {
@@ -255,7 +314,9 @@ export async function createRequest(db: Db, actor: Actor & { userId: string }, i
 		if (days > resource.maxDays) throw badRequest(`${resource.name} access lasts at most ${resource.maxDays} days`);
 	}
 	if (days !== null && days < 1) throw badRequest('Duration must be at least a day');
-	if (resource.approval !== 'none' && input.justification.trim().length < 3) throw badRequest('Say briefly why the access is needed');
+	const settings = await orgSettings(db, actor.orgId);
+	const policy = effectivePolicy(resource.approval, role.privileged, settings);
+	if (policy !== 'none' && input.justification.trim().length < 3) throw badRequest('Say briefly why the access is needed');
 
 	return db.tx(async (tx) => {
 		const dup = await tx.get<{ number: number }>(
@@ -270,14 +331,29 @@ export async function createRequest(db: Db, actor: Actor & { userId: string }, i
 		]);
 		if (held && !held.expires_at) throw conflict('They already have this access');
 
+		let category: RequestCategory = input.category ?? 'new_access';
+		if (!input.category) {
+			const joined = await tx.get<{ joined_at: string }>('SELECT joined_at FROM members WHERE org_id = ? AND user_id = ?', [actor.orgId, input.userId]);
+			const otherLevel = await tx.get("SELECT 1 FROM grants WHERE org_id = ? AND user_id = ? AND resource_id = ? AND role_id <> ? AND status = 'active'", [
+				actor.orgId,
+				input.userId,
+				resource.id,
+				role.id
+			]);
+			if (held) category = 'extension';
+			else if (otherLevel) category = 'change';
+			else if (joined && Date.now() - Date.parse(joined.joined_at) < NEW_HIRE_DAYS * DAY) category = 'new_hire';
+		}
+
 		const number = await nextRequestNumber(tx, actor.orgId);
 		const id = newId();
 		const t = now();
-		const status: RequestStatus = resource.approval === 'none' ? 'pending_fulfillment' : 'pending_approval';
+		const status: RequestStatus = policy === 'none' ? 'pending_fulfillment' : 'pending_approval';
+		const snap = await snapshot(tx, actor.orgId, input.userId, actor.userId, resource, role);
 		await tx.run(
-			`INSERT INTO requests (id, org_id, number, kind, reason, requester_id, user_id, resource_id, role_id, justification, duration_days, status, step, created_at, updated_at)
-			 VALUES (?, ?, ?, 'grant', 'request', ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-			[id, actor.orgId, number, actor.userId, input.userId, resource.id, role.id, input.justification.trim(), days, status, t, t]
+			`INSERT INTO requests (id, org_id, number, kind, reason, category, privileged, policy, batch_id, snapshot, requester_id, user_id, resource_id, role_id, justification, duration_days, status, step, created_at, updated_at)
+			 VALUES (?, ?, ?, 'grant', 'request', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+			[id, actor.orgId, number, category, role.privileged, policy, input.batchId ?? null, JSON.stringify(snap), actor.userId, input.userId, resource.id, role.id, input.justification.trim(), days, status, t, t]
 		);
 		const req = await getRequest(tx, actor.orgId, { id });
 		const forSelf = input.userId === actor.userId;
@@ -288,17 +364,17 @@ export async function createRequest(db: Db, actor: Actor & { userId: string }, i
 			requestId: id,
 			subject: resource.name,
 			summary: `Requested ${what(req)}${forSelf ? '' : ` for ${who(req.user)}`}${held ? ' (extension)' : ''}`,
-			data: { days, extension: !!held }
+			data: { days, category, privileged: role.privileged, policy }
 		});
 		if (status === 'pending_approval') await announceApproval(tx, actor.orgId, req, resource, fx);
-		else await startFulfillment(tx, actor.orgId, req, resource, fx, 'No approval needed');
+		else await startFulfillment(tx, actor.orgId, req, resource, fx, 'No approval needed (pre-approved by the resource’s policy)');
 		return getRequest(tx, actor.orgId, { id });
 	});
 }
 
 async function announceApproval(db: Db, orgId: string, req: AccessRequest, resource: Resource, fx: Effects) {
 	const { ids, via } = await approversFor(db, orgId, req, resource);
-	const steps = stepsFor(resource.approval).length;
+	const steps = stepsFor(req.policy).length;
 	fx.notices.push({
 		orgId,
 		to: ids,
@@ -333,10 +409,21 @@ const REVOKE_WHY: Record<RequestReason, string> = {
 	expired: 'Their access expired',
 	review: 'An access review decided to remove it',
 	offboarding: 'They’re being offboarded',
+	transfer: 'They moved to a different role',
 	manual: 'An admin revoked it'
 };
 
 // ── Approving ────────────────────────────────────────────────────────────────
+
+export const CAPACITY_LABEL: Record<ApprovalCapacity, string> = {
+	manager: 'Manager',
+	system_owner: 'System owner',
+	approver: 'Designated approver',
+	admin_fallback: 'Admin (no designated approver available)',
+	admin_override: 'Admin override',
+	self: 'Self-approved',
+	'': 'Approver'
+};
 
 export async function decide(db: Db, actor: Actor & { userId: string }, requestId: string, decision: 'approved' | 'denied', comment: string, fx: Effects) {
 	return db.tx(async (tx) => {
@@ -349,24 +436,34 @@ export async function decide(db: Db, actor: Actor & { userId: string }, requestI
 
 		const t = now();
 		const asAdmin = !can.approverIds.includes(actor.userId);
-		await tx.run('INSERT INTO approvals (id, org_id, request_id, step, approver_id, decision, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [
-			newId(),
-			actor.orgId,
-			req.id,
-			req.step,
-			actor.userId,
-			decision,
-			comment.trim(),
-			t
-		]);
+		const me = (await tx.get<{ name: string; email: string }>('SELECT name, email FROM users WHERE id = ?', [actor.userId]))!;
+		const capacityOf = (via: string): ApprovalCapacity =>
+			via === 'manager'
+				? 'manager'
+				: via === 'owner' || ((via === 'approvers' || via === 'admins') && resource.ownerId === actor.userId)
+					? 'system_owner'
+					: via === 'approvers'
+						? 'approver'
+						: via === 'admins'
+							? 'admin_fallback'
+							: via === 'self'
+								? 'self'
+								: '';
+		const insertApproval = (step: number, capacity: ApprovalCapacity, note: string) =>
+			tx.run(
+				'INSERT INTO approvals (id, org_id, request_id, step, approver_id, decision, comment, capacity, approver_name, approver_email, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				[newId(), actor.orgId, req.id, step, actor.userId, decision, note, capacity, me.name, me.email, t]
+			);
+		const capacity: ApprovalCapacity = asAdmin ? 'admin_override' : capacityOf(can.approverVia);
+		await insertApproval(req.step, capacity, comment.trim());
 		await record(tx, {
 			orgId: actor.orgId,
 			actorId: actor.userId,
 			action: decision === 'approved' ? 'request.approved' : 'request.denied',
 			requestId: req.id,
 			subject: resource.name,
-			summary: `${decision === 'approved' ? 'Approved' : 'Denied'} ${what(req)} for ${who(req.user)}${asAdmin ? ' (as admin)' : can.approverVia === 'self' ? ' (self-approved: no other approver)' : ''}`,
-			data: { step: req.step, comment: comment.trim() }
+			summary: `${decision === 'approved' ? 'Approved' : 'Denied'} ${what(req)} for ${who(req.user)} as ${CAPACITY_LABEL[capacity].toLowerCase()}${capacity === 'self' ? ' (no other approver)' : ''}`,
+			data: { step: req.step, comment: comment.trim(), capacity }
 		});
 
 		const notifyIds = [...new Set([req.user.id, req.requester?.id].filter((x): x is string => !!x && x !== actor.userId))];
@@ -383,11 +480,13 @@ export async function decide(db: Db, actor: Actor & { userId: string }, requestI
 		}
 
 		// Next step, unless this person also approves it (a manager who is also the approver).
+		// The approval row for a step they also cover is recorded too, so every step has evidence.
 		let step = req.step + 1;
-		const steps = stepsFor(resource.approval).length;
+		const steps = stepsFor(req.policy).length;
 		while (step <= steps) {
 			const next = await approversFor(tx, actor.orgId, { ...req, step }, resource);
 			if (!next.ids.includes(actor.userId)) break;
+			await insertApproval(step, capacityOf(next.via), `Also covers step ${step}`);
 			step++;
 		}
 		if (step <= steps) {
@@ -522,7 +621,7 @@ export async function addComment(db: Db, actor: Actor & { userId: string }, requ
  * Opens a removal request for a grant: the access stays until someone (or the webhook)
  * confirms it's gone. Returns null if a removal is already under way.
  */
-export async function startRevoke(db: Db, actor: Actor, grantId: string, reason: RequestReason, note: string, fx: Effects): Promise<AccessRequest | null> {
+export async function startRevoke(db: Db, actor: Actor, grantId: string, reason: RequestReason, note: string, fx: Effects, batchId: string | null = null): Promise<AccessRequest | null> {
 	const g = await db.get<{ id: string; user_id: string; resource_id: string; role_id: string; status: string }>(
 		'SELECT id, user_id, resource_id, role_id, status FROM grants WHERE org_id = ? AND id = ?',
 		[actor.orgId, grantId]
@@ -531,13 +630,16 @@ export async function startRevoke(db: Db, actor: Actor, grantId: string, reason:
 	if (g.status === 'revoked') throw conflict('That access was already removed');
 	if (g.status === 'pending_revoke') return null;
 	const resource = await getResource(db, actor.orgId, g.resource_id);
+	const role = await db.get<{ name: string; privileged: number }>('SELECT name, privileged FROM resource_roles WHERE id = ?', [g.role_id]);
+	const snap = await snapshot(db, actor.orgId, g.user_id, actor.userId, resource, { name: role?.name ?? '', privileged: !!role?.privileged });
 	const number = await nextRequestNumber(db, actor.orgId);
 	const id = newId();
 	const t = now();
+	// Removals never wait for approval: taking access away is always allowed.
 	await db.run(
-		`INSERT INTO requests (id, org_id, number, kind, reason, requester_id, user_id, resource_id, role_id, grant_id, justification, status, created_at, updated_at)
-		 VALUES (?, ?, ?, 'revoke', ?, ?, ?, ?, ?, ?, ?, 'pending_fulfillment', ?, ?)`,
-		[id, actor.orgId, number, reason, actor.userId, g.user_id, g.resource_id, g.role_id, g.id, note.trim(), t, t]
+		`INSERT INTO requests (id, org_id, number, kind, reason, category, privileged, policy, batch_id, snapshot, requester_id, user_id, resource_id, role_id, grant_id, justification, status, created_at, updated_at)
+		 VALUES (?, ?, ?, 'revoke', ?, 'removal', ?, 'none', ?, ?, ?, ?, ?, ?, ?, ?, 'pending_fulfillment', ?, ?)`,
+		[id, actor.orgId, number, reason, !!role?.privileged, batchId, JSON.stringify(snap), actor.userId, g.user_id, g.resource_id, g.role_id, g.id, note.trim(), t, t]
 	);
 	await db.run("UPDATE grants SET status = 'pending_revoke' WHERE id = ?", [g.id]);
 	const req = await getRequest(db, actor.orgId, { id });

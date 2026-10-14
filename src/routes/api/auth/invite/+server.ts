@@ -4,6 +4,7 @@ import { startSession, throttled } from '#lib/server/auth.ts';
 import { hashPassword, verifyPassword } from '#lib/server/crypto.ts';
 import { db } from '#lib/server/db.ts';
 import { record } from '#lib/server/events.ts';
+import { assertCanAddMembers } from '#lib/server/billing.ts';
 import { badRequest, body, handler, HttpError, notFound, str } from '#lib/server/http.ts';
 
 /** Accepts an invite: as the signed-in user, by signing in, or by creating the account. */
@@ -16,6 +17,7 @@ export const POST = handler(async (event) => {
 
 	let userId: string;
 	const existing = await userByEmail(d, invite.email);
+	if (!existing || !(await d.get('SELECT 1 FROM members WHERE org_id = ? AND user_id = ? AND status = \'active\'', [invite.org_id, existing.id]))) await assertCanAddMembers(d, invite.org_id);
 	if (event.locals.user?.email === invite.email) {
 		userId = event.locals.user.id;
 	} else if (existing) {

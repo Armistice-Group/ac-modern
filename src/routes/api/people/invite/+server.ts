@@ -4,6 +4,7 @@ import { db } from '#lib/server/db.ts';
 import { record } from '#lib/server/events.ts';
 import { adminCtx, badRequest, body, forbidden, handler, oneOf } from '#lib/server/http.ts';
 import { config } from '#lib/server/config.ts';
+import { assertCanAddMembers } from '#lib/server/billing.ts';
 
 /** Invites one or more people by email. Returns the links so they can be shared by hand too. */
 export const POST = handler(async (event) => {
@@ -18,6 +19,7 @@ export const POST = handler(async (event) => {
 	const role = oneOf(b, 'role', ['member', 'admin'] as const, 'member');
 	if (role === 'admin' && c.role !== 'owner' && c.role !== 'admin') throw forbidden();
 	const d = await db();
+	await assertCanAddMembers(d, c.org.id, emails.length);
 	const links: { email: string; url: string }[] = [];
 	for (const email of emails) {
 		const { token } = await createInvite(d, c.org.id, email, role, c.user.id);

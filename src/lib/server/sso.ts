@@ -7,6 +7,7 @@ import { decrypt, encrypt, randomToken } from './crypto.ts';
 import type { Db } from './db.ts';
 import { record } from './events.ts';
 import { badRequest, conflict } from './http.ts';
+import { getBilling } from './billing.ts';
 
 /**
  * Single sign-on, per organisation. Each org registers its own OIDC app and claims email
@@ -216,6 +217,7 @@ export async function completeLogin(db: Db, cookies: Cookies, currentUrl: URL, o
 		const member = existing ? await membership(db, flow.orgId, existing.id) : undefined;
 		if (!member && domainOrg !== flow.orgId) throw new LoginRefused(`${email} isn’t on one of this organisation’s domains. Ask an admin to invite you.`);
 		if (!member && !s.autoCreate) throw new LoginRefused(`${email} doesn’t have an account yet. Ask an admin to invite you.`);
+		if (!member && !(await getBilling(db, flow.orgId)).canGrow) throw new LoginRefused('This organisation has used all the seats on its plan. Ask an admin to upgrade.');
 		userId = existing?.id ?? (await createUser(db, { email, name, passwordHash: null })).id;
 		if (!member) {
 			const prior = await db.get<{ status: string }>('SELECT status FROM members WHERE org_id = ? AND user_id = ?', [flow.orgId, userId]);

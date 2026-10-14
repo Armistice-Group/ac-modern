@@ -200,6 +200,12 @@
 		</aside>
 
 		<main class="relative min-w-0 flex-1 overflow-y-auto">
+			{#if data.billingNotice}
+				<a href="/settings/billing" class="flex items-center justify-center gap-2 border-b border-border bg-warning/10 px-4 py-2 text-xs text-warning hover:bg-warning/15">
+					{data.billingNotice === 'payment' ? 'The last payment didn’t go through. Update your card to keep your plan.' : 'You’ve used all your free seats. New people can’t be added until you upgrade.'}
+					<span class="font-medium underline">Billing →</span>
+				</a>
+			{/if}
 			{@render children()}
 		</main>
 	</div>

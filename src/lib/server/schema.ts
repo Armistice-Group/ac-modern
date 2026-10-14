@@ -350,5 +350,22 @@ CREATE TABLE slack_teams (
 	team_id TEXT PRIMARY KEY,
 	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE
 )
+`,
+	// Cloud billing (Stripe).
+	`
+CREATE TABLE org_billing (
+	org_id TEXT PRIMARY KEY REFERENCES orgs(id) ON DELETE CASCADE,
+	customer_id TEXT,
+	subscription_id TEXT,
+	subscription_item_id TEXT,
+	status TEXT NOT NULL DEFAULT 'none',
+	seats INTEGER NOT NULL DEFAULT 0,
+	trial_used INTEGER NOT NULL DEFAULT 0,
+	trial_end TEXT,
+	current_period_end TEXT,
+	cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+	updated_at TEXT NOT NULL
+);
+CREATE INDEX org_billing_customer ON org_billing(customer_id)
 `
 ];

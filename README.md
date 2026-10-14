@@ -50,6 +50,10 @@ One container, no other services needed. Data lives in a SQLite file in the `/da
 
 `ACM_MODE=cloud` turns on `/signup`. Anyone (or only addresses matching `ACM_SIGNUP_ALLOW`) can create an organisation. One account can belong to several organisations and switch between them from the sidebar. Every table is scoped by `org_id`, and a test checks that one organisation can't read or act on another's data. Use Postgres in this mode.
 
+## Billing (cloud)
+
+With `ACM_MODE=cloud` and a Stripe key, organisations get a free tier (`ACM_FREE_SEATS`, default 5) and a per-seat plan (`ACM_STRIPE_PRICE_ID`) with a trial (`ACM_TRIAL_DAYS`). Upgrading goes through Stripe Checkout, and cards and invoices are handled in the Stripe Customer Portal. Seats follow active members automatically. Point a Stripe webhook at `/api/billing/webhook` (`checkout.session.completed`, `customer.subscription.*`) and set `ACM_STRIPE_WEBHOOK_SECRET`. Over the free limit, only *adding* people pauses. Approvals, removals and offboarding always work. Self-hosted installs have no billing.
+
 ## Webhook fulfillment
 
 ```

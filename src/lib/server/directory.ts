@@ -4,6 +4,7 @@ import type { Db } from './db.ts';
 import { record } from './events.ts';
 import { offboard } from './grants.ts';
 import { badRequest } from './http.ts';
+import { getBilling } from './billing.ts';
 import type { Effects } from './requests.ts';
 
 /**
@@ -240,7 +241,7 @@ export async function reconcile(db: Db, orgId: string, fx: Effects): Promise<Rec
 		const member = userId ? await db.get<{ status: string; title: string; deactivated_by: string; source: string }>('SELECT status, title, deactivated_by, source FROM members WHERE org_id = ? AND user_id = ?', [orgId, userId]) : undefined;
 		if (du.active) {
 			if (!member) {
-				if (!source.createMembers) {
+				if (!source.createMembers || !(await getBilling(db, orgId)).canGrow) {
 					res.unmatched++;
 					continue;
 				}

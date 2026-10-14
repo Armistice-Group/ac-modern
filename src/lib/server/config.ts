@@ -47,6 +47,17 @@ export const config = {
 	slackApp: env.ACM_SLACK_CLIENT_ID
 		? { clientId: env.ACM_SLACK_CLIENT_ID, clientSecret: env.ACM_SLACK_CLIENT_SECRET || '', signingSecret: env.ACM_SLACK_SIGNING_SECRET || '' }
 		: null,
+	/** Cloud billing. Without a Stripe key, billing is off (everything is free). */
+	billing: env.ACM_STRIPE_SECRET_KEY
+		? {
+				secretKey: env.ACM_STRIPE_SECRET_KEY,
+				webhookSecret: env.ACM_STRIPE_WEBHOOK_SECRET || '',
+				priceId: env.ACM_STRIPE_PRICE_ID || '',
+				priceLabel: env.ACM_PRICE_LABEL || 'per person / month',
+				freeSeats: Number(env.ACM_FREE_SEATS || 5),
+				trialDays: Number(env.ACM_TRIAL_DAYS || 14)
+			}
+		: null,
 	/** How often expiry and reminder jobs run. */
 	jobIntervalMs: Number(env.ACM_JOB_INTERVAL_SECONDS || 60) * 1000
 };

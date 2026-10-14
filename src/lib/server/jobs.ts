@@ -3,6 +3,7 @@ import { config } from './config.ts';
 import { db } from './db.ts';
 import { sweepExpiry } from './grants.ts';
 import { syncDirectory } from './directory.ts';
+import { syncSeats } from './billing.ts';
 import { effects, flush } from './requests.ts';
 
 let timer: ReturnType<typeof setInterval> | undefined;
@@ -26,6 +27,7 @@ export async function runJobs() {
 					await syncDirectory(d, o.id, fx).catch((err) => console.warn(`[ac-modern] Directory sync for ${o.id} failed: ${(err as Error).message}`));
 				}
 				await flush(d, o.id, fx, config.publicUrl);
+				await syncSeats(d, o.id).catch((err) => console.warn(`[ac-modern] Seat sync for ${o.id} failed: ${(err as Error).message}`));
 			} catch (err) {
 				console.error(`[ac-modern] Jobs failed for org ${o.id}:`, err);
 			}

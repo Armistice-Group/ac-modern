@@ -1,0 +1,39 @@
+---
+title: GitHub
+description: Add and remove organisation members and team members automatically.
+icon: git-branch
+---
+
+## Connect
+
+**Settings → Integrations → GitHub.** Enter the organisation (`acme`) and a token owned by an organisation owner:
+
+- a **fine-grained token** with the organisation permission **Members: Read and write**, or
+- a **classic token** with `admin:org`.
+
+Connecting checks the organisation exists and that the token's user is an owner.
+
+## Map access levels
+
+In the resource editor, choose **GitHub** as the setup method and say what each level means:
+
+| Option | On grant | On removal |
+|---|---|---|
+| **Org member** | Org membership as member | Removed from the org |
+| **Org owner** | Org membership as owner | Removed from the org |
+| **Team…** (member or maintainer) | Added to the team | Removed from the team |
+
+Teams are listed from GitHub; you can also type a team slug.
+
+## GitHub usernames
+
+GitHub can't look people up by email, so ac·modern uses the **GitHub username** on their profile. People set it under **Account**; admins can set it on the person's page.
+
+<AccordionGroup>
+  <Accordion title="With a username">
+    Membership is set directly. For people not yet in the org, GitHub sends them an invitation.
+  </Accordion>
+  <Accordion title="Without a username">
+    ac·modern sends an **email invitation** (to the team, for team levels). Removal then cancels the pending invitation. Once they've accepted it, removal needs their username: add it to their profile, or the removal falls back to the fulfillers.
+  </Accordion>
+</AccordionGroup>

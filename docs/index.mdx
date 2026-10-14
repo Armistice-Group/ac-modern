@@ -1,0 +1,51 @@
+---
+title: Introduction
+description: Access requests, approvals and reviews for small teams. Self-host it in one container, or run it as a hosted service.
+icon: key-round
+---
+
+<Frame>
+  <img src="/screenshots/overview.png" alt="The ac·modern overview" />
+</Frame>
+
+Small teams usually handle access in Slack DMs and a spreadsheet, or pay for a helpdesk suite they don't need. ac·modern sits in between: people ask for the access they need, the right person approves it, someone (or an integration) sets it up, and it expires on time. You always know who has what, and you can show an auditor how it got that way.
+
+## What it does
+
+<CardGroup cols={2}>
+  <Card title="Catalog and requests" icon="layout-grid" href="/guides/requesting-access">
+    Every app and system people can request, with access levels and a reason for each request.
+  </Card>
+  <Card title="Approvals" icon="user-check" href="/guides/approving">
+    The requester's manager, the system owner or named approvers, by email, Slack or the web.
+  </Card>
+  <Card title="Setup" icon="wrench" href="/guides/fulfilling">
+    By hand, by webhook, or through GitHub, Google Workspace, Okta, Authentik or Entra ID.
+  </Card>
+  <Card title="Time-boxed access" icon="hourglass" href="/concepts#grants">
+    Access expires on its own, with a reminder before it does.
+  </Card>
+  <Card title="Access reviews" icon="clipboard-check" href="/guides/access-reviews">
+    System owners keep or revoke every grant, and you keep the record.
+  </Card>
+  <Card title="Audit evidence" icon="file-check-2" href="/compliance/audit-evidence">
+    The request population for any period, and a printable ticket for every sample.
+  </Card>
+  <Card title="Identity" icon="fingerprint" href="/identity/directory-sync">
+    Single sign-on, plus directory sync from Okta, Entra ID, Google Workspace and any SCIM IdP.
+  </Card>
+  <Card title="API" icon="code" href="/api-reference/introduction">
+    A read-only REST API for Vanta, Drata, Secureframe or your own scripts.
+  </Card>
+</CardGroup>
+
+## Two ways to run it
+
+<CardGroup cols={2}>
+  <Card title="Self-hosted" icon="server" href="/quickstart">
+    One Docker container with a built-in SQLite database. Postgres if you prefer. No billing.
+  </Card>
+  <Card title="Cloud" icon="cloud" href="/cloud">
+    Anyone can sign up and create an organisation. Postgres, Stripe billing, shared Slack app.
+  </Card>
+</CardGroup>

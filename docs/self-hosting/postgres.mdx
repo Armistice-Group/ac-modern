@@ -1,0 +1,21 @@
+---
+title: Postgres
+description: Use Postgres instead of the built-in SQLite file.
+icon: database
+---
+
+SQLite (built into Node, no extra service) is fine for a self-hosted team. Use Postgres if you already run it, want managed backups, or run the cloud mode.
+
+```sh
+ACM_DATABASE_URL=postgres://acm:secret@postgres:5432/acm
+```
+
+`compose.yaml` has a commented `postgres` service to start from. ac·modern creates its tables on startup and applies new migrations on upgrade. The same SQL runs on both databases.
+
+<Note>
+  Migrations run in one transaction under a Postgres advisory lock, so several instances starting together wait for each other instead of racing.
+</Note>
+
+<Warning>
+  There's no built-in way to copy data from SQLite to Postgres yet. Choose before you invite your team.
+</Warning>

@@ -1,0 +1,78 @@
+---
+title: Single sign-on
+description: Sign in through your identity provider with OIDC, per organisation.
+icon: fingerprint
+---
+
+ac·modern supports any OpenID Connect provider: Okta, Microsoft Entra ID, Google Workspace, JumpCloud, Authentik, Keycloak and others. Each organisation configures its own in **Settings → Single sign-on**.
+
+<Steps>
+  <Step title="Register ac·modern with your IdP">
+    Create an OIDC web application with this redirect URI:
+
+    ```
+    https://<your ac·modern>/auth/oidc/callback
+    ```
+  </Step>
+  <Step title="Connect it">
+    Enter the **issuer URL** (for example `https://acme.okta.com`), **client ID**, **client secret** and a **button label**. Scopes default to `openid email profile`. **Test connection** checks discovery.
+
+    The issuer must use `https`. Self-hosted installs may use plain `http` on a LAN.
+  </Step>
+  <Step title="Claim your email domains">
+    Add the domains your people sign in with (`acme.com`). Sign-ins are only trusted for these domains.
+  </Step>
+</Steps>
+
+## Email domains
+
+<Tabs>
+  <Tab title="Cloud">
+    A domain must be verified before it counts. Add the TXT record shown next to it:
+
+    ```
+    acme.com.  TXT  "ac-modern-verification=<token>"
+    ```
+
+    then click **Verify**. Only one organisation can claim a domain.
+  </Tab>
+  <Tab title="Self-hosted">
+    Domains are trusted as soon as you add them.
+  </Tab>
+</Tabs>
+
+## How people are matched
+
+1. Someone who has signed in before is matched by their IdP subject.
+2. Otherwise by email: an existing member (invited, or from directory sync) is linked.
+3. Otherwise, if their email is on a verified domain and **Create accounts on first sign-in** is on, they become a member.
+
+People from other domains need an invite. Offboarded people stay out, even if your IdP still lets them in.
+
+## Signing in
+
+- **Self-hosted:** the sign-in page shows **Continue with &lt;label&gt;**.
+- **Cloud:** **Sign in with SSO** asks for a work email and finds the organisation by domain.
+- **From your IdP's app dashboard:** use `https://<your ac·modern>/auth/oidc/start?org=<org slug>`. The exact link is shown in settings.
+
+## Requiring SSO
+
+**Require single sign-on** makes members sign in through your IdP, so disabling someone there locks them out here too. A member with a password session is sent through SSO. It needs at least one verified domain.
+
+<Note>
+  **Owners keep password sign-in** as a break-glass, in case your IdP is down or misconfigured.
+</Note>
+
+## Configuring with environment variables
+
+Self-hosted installs can set SSO in the environment instead (this overrides the settings page):
+
+```sh
+ACM_OIDC_ISSUER=https://acme.okta.com
+ACM_OIDC_CLIENT_ID=…
+ACM_OIDC_CLIENT_SECRET=…
+ACM_OIDC_NAME=Okta
+ACM_OIDC_SCOPES="openid email profile"
+ACM_OIDC_DOMAINS=acme.com
+ACM_OIDC_REQUIRED=false
+```

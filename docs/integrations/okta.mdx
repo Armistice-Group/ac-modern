@@ -1,0 +1,33 @@
+---
+title: Okta
+description: Grant access through Okta groups or app assignments, and let Okta do the rest.
+icon: shield
+---
+
+Make Okta the place access is granted. When a request is approved, ac·modern adds the person to an Okta group (or assigns them the app). Okta's group-based app assignments and Group Push then carry it into each app. One integration covers every app behind Okta.
+
+## Connect
+
+**Settings → Integrations → Okta.** Enter your Okta domain (`acme.okta.com`) and an API token (**Security → API → Tokens**) created by an admin who can manage the groups and apps you'll use:
+
+- **Group Membership Admin** for group levels
+- **App Admin** for app assignment levels
+
+(or a Super Admin). If you already use the [Okta API for directory sync](/identity/directory-sync#okta-api), leave the token blank to reuse that one, as long as its admin also has these roles.
+
+## Map access levels
+
+| Option | On grant | On removal |
+|---|---|---|
+| **Group** | Added to the Okta group | Removed from the group |
+| **App assignment** | The app is assigned to the person | The assignment is removed |
+
+Groups and active apps are listed from Okta. Group membership is the recommended option: assign apps to groups in Okta, and map each access level to a group.
+
+## Finding people
+
+People are found in Okta by email: by login first (usually the email), then by the email attribute. If someone has no Okta account, the request goes to the fulfillers with that error. On removal, someone with no Okta account counts as already removed.
+
+<Tip>
+  With [directory sync](/identity/directory-sync#group-mappings), map the same Okta group to the same access level. Access granted through an approved request isn't flagged when the sync sees the group membership, but anyone added to the group directly in Okta is.
+</Tip>

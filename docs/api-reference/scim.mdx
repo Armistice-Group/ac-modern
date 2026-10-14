@@ -1,0 +1,65 @@
+---
+title: SCIM 2.0
+description: The endpoints identity providers use to provision people and groups.
+icon: arrow-down-to-line
+---
+
+ac·modern is a SCIM 2.0 service provider (RFC 7643/7644) for Okta, Entra ID, JumpCloud, OneLogin and others. Setup is described in [Directory sync](/identity/directory-sync#scim).
+
+**Base URL:** `https://<your ac·modern>/scim/v2`
+**Authentication:** `Authorization: Bearer acm_scim_…` (from **Settings → Directory sync**)
+**Content type:** `application/scim+json`
+
+## Discovery
+
+| | |
+|---|---|
+| `GET /ServiceProviderConfig` | Patch and filter supported; bulk, sort, ETags and password changes aren't |
+| `GET /ResourceTypes` | `User` (with the enterprise extension) and `Group` |
+| `GET /Schemas` | |
+
+## Users
+
+| | |
+|---|---|
+| `GET /Users` | Lists users. Filters: `userName eq "…"`, `externalId eq "…"`, `emails.value eq "…"`, `id eq "…"`. Pagination: `startIndex`, `count` (at most 500). |
+| `POST /Users` | Creates a user. `409` if the `userName`/email or `externalId` exists. |
+| `GET /Users/{id}` | |
+| `PUT /Users/{id}` | Replaces the user |
+| `PATCH /Users/{id}` | `add`, `replace` and `remove` operations, with or without a path, including `emails[type eq "work"].value` and the enterprise `manager` |
+| `DELETE /Users/{id}` | Deactivates the user (history is kept) |
+
+Fields used: `userName`, `emails` (primary, else work, else first, else `userName`), `name` / `displayName`, `title`, `active` (booleans or `"True"`/`"False"` strings), `externalId`, and `urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:manager.value`.
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "userName": "dev@acme.com",
+  "name": { "givenName": "Dee", "familyName": "Dev" },
+  "emails": [{ "value": "dev@acme.com", "type": "work", "primary": true }],
+  "title": "Engineer",
+  "active": true,
+  "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": { "manager": { "value": "<manager's SCIM id>" } }
+}
+```
+
+## Groups
+
+| | |
+|---|---|
+| `GET /Groups` | Filters: `displayName eq "…"`, `externalId eq "…"`. Honours `excludedAttributes=members`. |
+| `POST /Groups` | `displayName` and optional `members` |
+| `GET /Groups/{id}` | |
+| `PUT /Groups/{id}` | Replaces name and members |
+| `PATCH /Groups/{id}` | Add, remove or replace `members` (including `members[value eq "…"]`), and rename |
+| `DELETE /Groups/{id}` | |
+
+## Errors
+
+Errors use the SCIM error schema:
+
+```json
+{ "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"], "status": "409", "scimType": "uniqueness", "detail": "A user with that userName already exists" }
+```
+
+Every write is applied straight away: people are added, updated or deactivated, and group mappings are re-evaluated.

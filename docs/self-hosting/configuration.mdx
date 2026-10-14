@@ -1,0 +1,82 @@
+---
+title: Configuration
+description: Every environment variable ac·modern reads.
+icon: settings
+---
+
+Everything is optional. A bare `docker compose up -d` runs a self-hosted install on SQLite with a setup wizard.
+
+## Core
+
+| Variable | Default | |
+|---|---|---|
+| `ACM_MODE` | `self-hosted` | `self-hosted` (one organisation, setup wizard) or `cloud` (sign-up, many organisations) |
+| `ACM_DATA_DIR` | `./data` (`/data` in Docker) | Where the SQLite database and generated secret key live |
+| `ACM_DATABASE_URL` | SQLite in the data folder | `postgres://…` for Postgres. `DATABASE_URL` also works. |
+| `ACM_DATABASE_POOL` | `10` | Postgres connection pool size |
+| `ACM_SECRET_KEY` | generated `secret.key` | Encrypts stored secrets (SSO, integration and Slack tokens, webhook signing keys, the Slack channel URL) |
+| `ACM_PUBLIC_URL` | the request's address | Base URL for links in emails and Slack. `ORIGIN` is used if this isn't set. |
+| `PORT` | `3000` | Listening port |
+
+## First owner
+
+| Variable | |
+|---|---|
+| `ACM_ADMIN_EMAIL` | Creates the first organisation and owner on startup (skips the setup wizard) |
+| `ACM_ADMIN_PASSWORD` | At least 8 characters |
+| `ACM_ADMIN_NAME` | Optional |
+| `ACM_ORG_NAME` | Default `My team` |
+
+## Email
+
+| Variable | |
+|---|---|
+| `ACM_SMTP_URL` | For example `smtps://user:pass@smtp.example.com`. Without it, no email is sent and invite links are shown to copy. |
+| `ACM_SMTP_FROM` | Default `ac·modern <no-reply@localhost>` |
+
+## Single sign-on (self-hosted)
+
+Overrides **Settings → Single sign-on**. See [Single sign-on](/identity/single-sign-on).
+
+| Variable | Default |
+|---|---|
+| `ACM_OIDC_ISSUER` | |
+| `ACM_OIDC_CLIENT_ID` | |
+| `ACM_OIDC_CLIENT_SECRET` | |
+| `ACM_OIDC_NAME` | `SSO` |
+| `ACM_OIDC_SCOPES` | `openid email profile` |
+| `ACM_OIDC_DOMAINS` | Comma-separated, trusted without DNS verification |
+| `ACM_OIDC_REQUIRED` | `false` |
+
+## Background jobs
+
+| Variable | Default | |
+|---|---|---|
+| `ACM_JOB_INTERVAL_SECONDS` | `60` | How often expiry, reminders, directory pulls and seat sync run |
+| `ACM_DIRECTORY_SYNC_MINUTES` | `30` | How often Google, Okta and Microsoft directories are pulled |
+| `ACM_JOBS` | on | `off` disables background jobs (for example on extra web replicas) |
+
+## Cloud
+
+| Variable | Default | |
+|---|---|---|
+| `ACM_SIGNUP_ALLOW` | anyone | Who can create organisations: comma-separated `*@example.com` or addresses |
+| `ACM_SLACK_CLIENT_ID` | | Shared Slack app for *Add to Slack* |
+| `ACM_SLACK_CLIENT_SECRET` | | |
+| `ACM_SLACK_SIGNING_SECRET` | | |
+| `ACM_STRIPE_SECRET_KEY` | | Turns billing on. See [Stripe setup](/billing/stripe). |
+| `ACM_STRIPE_WEBHOOK_SECRET` | | |
+| `ACM_STRIPE_PRICE_ID` | | Recurring per-seat price |
+| `ACM_PRICE_LABEL` | `per person / month` | Shown next to *Upgrade* |
+| `ACM_FREE_SEATS` | `5` | People included without a plan |
+| `ACM_TRIAL_DAYS` | `14` | Trial on an organisation's first subscription |
+
+## Reverse proxy
+
+| Variable | |
+|---|---|
+| `PROTOCOL_HEADER` | For example `x-forwarded-proto` |
+| `HOST_HEADER` | For example `x-forwarded-host` |
+| `ORIGIN` | The public origin, if you'd rather fix it than read headers |
+
+See [Reverse proxy and TLS](/self-hosting/reverse-proxy).

@@ -1,0 +1,24 @@
+---
+title: Privileged access
+description: Admin-level and sensitive access always needs the system owner's approval.
+icon: shield-alert
+---
+
+Mark an access level as **privileged** in the resource editor (the *Privileged* checkbox next to each level). Templates mark the obvious ones: GitHub Owner, AWS Admin, Google Workspace Admin, Production database Read-write.
+
+With **Privileged levels always need the system owner** on (**Settings → General → Approval controls**, on by default):
+
+| Resource's rule | For a privileged level |
+|---|---|
+| No approval | Resource approvers |
+| Their manager | Manager, then approvers |
+| Resource approvers | Unchanged |
+| Manager, then approvers | Unchanged |
+
+A justification is always required for privileged levels.
+
+Privileged requests are badged everywhere, can be filtered on the evidence page (**Privileged only**) and in the API (`privileged=true`), and are tagged in the audit log, including privileged access recorded by hand or detected from IdP groups.
+
+<Tip>
+  Combine privileged levels with a short **longest allowed** duration (a day or a week) for break-glass access: it expires on its own and opens a removal.
+</Tip>

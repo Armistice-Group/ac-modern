@@ -1,0 +1,31 @@
+---
+title: Authentication
+description: API tokens, rate limits and errors.
+icon: key-round
+---
+
+Create tokens in **Settings → API** (admins). Tokens are:
+
+- **Read-only** and scoped to one organisation
+- Shown **once** when created, stored hashed
+- Optionally **expiring** (90 days, a year, or never), and revocable at any time
+- Listed with who created them and when they were last used
+
+Send the token as a bearer token:
+
+```http
+Authorization: Bearer acm_…
+```
+
+<ResponseField name="401" type="error">
+  The token is missing, wrong, expired or revoked. The response includes `www-authenticate: Bearer`.
+</ResponseField>
+<ResponseField name="429" type="error">
+  More than 600 requests in a minute with one token. Wait for `retry-after` seconds.
+</ResponseField>
+
+<Note>
+  SCIM tokens (`acm_scim_…`) only work on the SCIM endpoints, and API tokens only on `/api/v1`.
+</Note>
+
+Creating and revoking tokens is recorded in the audit log.

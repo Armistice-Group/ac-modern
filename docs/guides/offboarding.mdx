@@ -1,0 +1,23 @@
+---
+title: Offboarding
+description: Remove everything someone holds when they leave, in one step.
+icon: user-minus
+---
+
+On a person's page, **Offboard** (admins only):
+
+1. Deactivates them and signs them out.
+2. Cancels their open requests.
+3. Opens a removal for every grant they hold, with the reason *Offboarding*. Removals through a webhook or integration happen automatically. The rest go to each resource's fulfillers.
+
+The confirmation lists exactly what will be removed. Their history stays.
+
+<Tip>
+  With [directory sync](/identity/directory-sync), deactivating someone in your IdP does this for you. Choose **Offboard (remove all their access)** as the deactivation behaviour.
+</Tip>
+
+## Limits
+
+- You can't offboard yourself.
+- The last owner can't be offboarded: make someone else an owner first.
+- Offboarded people can't sign in, even through SSO, until an admin clicks **Reactivate**.

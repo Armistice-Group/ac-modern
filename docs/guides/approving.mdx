@@ -1,0 +1,50 @@
+---
+title: Approving
+description: Approve or deny from the web, email or Slack. Every decision records who approved and in what capacity.
+icon: user-check
+---
+
+<Frame>
+  <img src="/screenshots/request.png" alt="A request waiting for approval" />
+</Frame>
+
+When a request needs you, it appears under **Requests → To approve** and in **Needs you** on the overview, and you get an email (and a Slack message if connected).
+
+- **Approve** moves it to the next step, or to setup.
+- **Deny** requires a short note, which the requester sees.
+
+From Slack, **Approve** works in one click and **Deny…** opens a form for the reason. See [Slack](/integrations/slack).
+
+## Approval rules
+
+| Rule | Steps |
+|---|---|
+| **No approval** | None: straight to setup. For low-risk tools. Privileged levels still need an approver. |
+| **Their manager** | The requester's manager. |
+| **Resource approvers** | Any one of the resource's approvers. |
+| **Manager, then approvers** | The manager first, then an approver. |
+
+If the same person covers both steps (a manager who is also an approver), their one approval counts for both, and both steps are recorded.
+
+## Fallbacks
+
+If a step's approvers are missing or deactivated, the step falls back to the resource owner, then to admins. The person the request is for is skipped. If nobody else is left (a one-person team), they can approve their own request, and it's recorded as **self-approved**.
+
+## Capacity
+
+Each approval records the capacity the approver acted in:
+
+| Capacity | Meaning |
+|---|---|
+| **Manager** | The requester's manager, on a manager step |
+| **System owner** | The resource's owner |
+| **Designated approver** | One of the resource's approvers |
+| **Admin (fallback)** | No designated approver was available |
+| **Admin override** | An admin approved on someone else's behalf (only when allowed) |
+| **Self-approved** | Nobody else could approve |
+
+The last three are flagged as exceptions in the [audit evidence](/compliance/audit-evidence).
+
+<Info>
+  Admins can't approve on someone else's behalf unless you turn on **Admins can approve on an approver's behalf** in **Settings → General → Approval controls**. It's off by default.
+</Info>

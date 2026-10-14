@@ -1,0 +1,35 @@
+---
+title: API overview
+description: A read-only REST API for GRC tools and scripts.
+icon: code
+---
+
+The API gives Vanta, Drata, Secureframe or your own scripts read-only access to:
+
+| Endpoint | |
+|---|---|
+| `GET /organization` | The organisation and its access-control settings |
+| `GET /users` | People, roles, managers, status and source |
+| `GET /resources` | Systems, owners, approval rules, access levels (and which are privileged) |
+| `GET /access` | Who has what |
+| `GET /requests` | The audit population for a period: type, approvals with capacity, setup, flags |
+| `GET /requests/{number}` | One ticket, with its full timeline and record fingerprint |
+| `GET /reviews`, `GET /reviews/{id}` | Access reviews and every decision |
+| `GET /events` | The audit log |
+
+Base URL: `https://<your ac·modern>/api/v1`. The OpenAPI 3.1 spec is served at `/api/v1/openapi.json` (no token needed), and the endpoint pages in this section are generated from it.
+
+## Conventions
+
+- JSON with `snake_case` keys, timestamps in ISO-8601 UTC.
+- Lists return `{ "data": [...], "next_cursor": "…" | null }`. Pass `?cursor=` for the next page and `?limit=` (default 100, at most 1000).
+- `from` and `to` take a date (`2026-01-01`, where `to` includes that whole day) or an ISO-8601 instant.
+- Errors return `{ "error": { "status": 404, "message": "…" } }`.
+- The API is read-only: other methods return `405`.
+
+```sh
+curl -H "Authorization: Bearer acm_…" \
+  "https://access.example.com/api/v1/requests?from=2026-01-01&to=2026-12-31&type=new_hire,transfer"
+```
+
+See [Authentication](/api-reference/authentication) for tokens. Provisioning from your IdP uses a separate interface: the [SCIM endpoints](/api-reference/scim).

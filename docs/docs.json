@@ -1,0 +1,182 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "ac·modern",
+  "description": "Access requests, approvals and reviews for small teams. Self-hosted or cloud.",
+  "colors": {
+    "primary": "#7c3aed",
+    "light": "#a78bfa",
+    "dark": "#6d28d9"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "/"
+  },
+  "appearance": {
+    "default": "dark"
+  },
+  "fonts": {
+    "family": "Geist"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "background": {
+    "decoration": "gradient"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/your-org/ac-modern"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get started",
+      "href": "/quickstart"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "index",
+              "quickstart",
+              "cloud",
+              "concepts"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/requesting-access",
+              "guides/approving",
+              "guides/fulfilling",
+              "guides/onboarding-and-transfers",
+              "guides/offboarding",
+              "guides/access-reviews",
+              "guides/recording-existing-access"
+            ]
+          },
+          {
+            "group": "Audit & compliance",
+            "pages": [
+              "compliance/audit-evidence",
+              "compliance/privileged-access",
+              "compliance/frameworks"
+            ]
+          },
+          {
+            "group": "Identity",
+            "pages": [
+              "identity/single-sign-on",
+              "identity/directory-sync"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/github",
+              "integrations/google-workspace",
+              "integrations/okta",
+              "integrations/authentik",
+              "integrations/entra",
+              "integrations/slack",
+              "integrations/webhooks"
+            ]
+          },
+          {
+            "group": "Self-hosting",
+            "pages": [
+              "self-hosting/configuration",
+              "self-hosting/postgres",
+              "self-hosting/reverse-proxy",
+              "self-hosting/backups",
+              "self-hosting/upgrading"
+            ]
+          },
+          {
+            "group": "Cloud & billing",
+            "pages": [
+              "billing/plans",
+              "billing/stripe"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/introduction",
+              "api-reference/authentication",
+              "api-reference/scim"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "openapi": "api-reference/openapi.json"
+          }
+        ]
+      }
+    ]
+  },
+  "api": {
+    "playground": {
+      "display": "interactive"
+    },
+    "examples": {
+      "languages": [
+        "curl",
+        "javascript",
+        "python"
+      ]
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/your-org/ac-modern"
+    },
+    "links": [
+      {
+        "header": "ac·modern",
+        "items": [
+          {
+            "label": "Quickstart",
+            "href": "/quickstart"
+          },
+          {
+            "label": "Audit evidence",
+            "href": "/compliance/audit-evidence"
+          },
+          {
+            "label": "API reference",
+            "href": "/api-reference/introduction"
+          }
+        ]
+      },
+      {
+        "header": "Family",
+        "items": [
+          {
+            "label": "pg·modern",
+            "href": "https://github.com/vitafortis/pg-modern"
+          },
+          {
+            "label": "octo·modern",
+            "href": "https://github.com/your-org/octo-modern"
+          }
+        ]
+      }
+    ]
+  }
+}

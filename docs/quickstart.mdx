@@ -1,0 +1,52 @@
+---
+title: Quickstart
+description: Run ac·modern yourself with Docker and set up your organisation.
+icon: rocket
+---
+
+<Steps>
+  <Step title="Start the container">
+    From a checkout of the repository:
+
+    ```sh
+    docker compose up -d
+    ```
+
+    This builds the image and starts ac·modern on port **3040**, with its data in the `ac-modern-data` volume. The `compose.yaml` file lists every option, commented out.
+  </Step>
+  <Step title="Create your organisation">
+    Open `http://<host>:3040`. The setup wizard asks for your team's name and creates the owner account.
+
+    <Tip>
+      To skip the wizard (for scripted installs), set `ACM_ADMIN_EMAIL`, `ACM_ADMIN_PASSWORD` and `ACM_ORG_NAME`. The password must be at least 8 characters.
+    </Tip>
+  </Step>
+  <Step title="Add the tools people ask for">
+    Go to **Resources → Add resource**. Start from a template (GitHub, AWS, Google Workspace, Figma, Production database) or from scratch. For each resource, set its access levels, who approves, and who sets it up. See [Concepts](/concepts).
+  </Step>
+  <Step title="Invite your team">
+    **People → Invite people** creates one invite link per address, valid once for 14 days. Without email configured, copy the links and send them yourself. With [directory sync](/identity/directory-sync), people are added from your IdP instead.
+  </Step>
+  <Step title="Record who already has access">
+    **Access → Record existing access**, so that reviews and offboarding cover access from before ac·modern. See [Recording existing access](/guides/recording-existing-access).
+  </Step>
+  <Step title="Connect notifications (optional)">
+    Set `ACM_SMTP_URL` and `ACM_SMTP_FROM` for email. Connect Slack under **Settings → Integrations** (direct messages with Approve and Deny buttons) or **Settings → General** (a channel webhook).
+  </Step>
+</Steps>
+
+<Note>
+  Behind a reverse proxy with TLS, set `ACM_PUBLIC_URL` and the proxy headers. See [Reverse proxy and TLS](/self-hosting/reverse-proxy).
+</Note>
+
+## Try it with demo data
+
+From a checkout, with Node 24 and pnpm:
+
+```sh
+pnpm install
+ACM_DATA_DIR=./demo-data pnpm seed
+ACM_DATA_DIR=./demo-data pnpm dev
+```
+
+Sign in as `avery@northwind.example` with password `demo-password`. Other demo people (`jordan@`, `sam@`, `morgan@` and so on) use the same password.

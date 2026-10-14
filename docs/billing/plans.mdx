@@ -1,0 +1,26 @@
+---
+title: Plans and seats
+description: How billing works on a cloud install.
+icon: credit-card
+---
+
+Billing only exists in cloud mode, and only when the operator has set up Stripe. Self-hosted installs have every feature, free.
+
+## Seats
+
+You pay for **active people**. Offboarded and deactivated people don't count. Seats follow your team automatically, prorated.
+
+## Free tier
+
+Up to a set number of people (5 unless the operator changed it) with no card. Over the limit without a plan:
+
+- **Paused:** inviting people, creating accounts through SSO, and adding people from directory sync
+- **Still working:** everything else, including requests, approvals, removals, offboarding, reviews and evidence
+
+Admins see a banner and the reason. Approvals, removals and offboarding are never blocked over billing.
+
+## Upgrading
+
+**Settings → Billing → Upgrade to Team** opens Stripe Checkout, with a trial the first time. **Manage billing** opens the Stripe Customer Portal for cards, invoices and cancellation.
+
+If a payment fails, the plan stays in place while Stripe retries, and admins see a banner asking them to update the card. A cancelled plan returns to the free tier: nothing is deleted.

@@ -1,0 +1,73 @@
+---
+title: Audit evidence
+description: The population of access changes for a period, and a ticket for every sample.
+icon: file-check-2
+---
+
+<Frame>
+  <img src="/screenshots/evidence.png" alt="The audit evidence page" />
+</Frame>
+
+Auditors testing an access-request control usually:
+
+1. Ask for the **population**: every access grant or change in the audit period.
+2. **Sample** from it: new hires, transfers, new admins, extra permissions to databases or repositories.
+3. Ask for each sample's **ticket**: who asked, why, who approved and in what capacity, and that setup happened after approval.
+
+**Audit evidence** (admins) produces all three.
+
+## The population
+
+Choose a period (presets for last 90 days, this quarter, last quarter, year to date, last 12 months), then filter by type, *privileged only* or *exceptions only*. **Population CSV** downloads it with these columns:
+
+| Column | |
+|---|---|
+| `request`, `type`, `privileged` | The request number, its [type](/concepts#request-types), and whether the level is privileged |
+| `person`, `person_email`, `title_at_request`, `manager_at_request` | As they were when the request was made |
+| `resource`, `access_level`, `system_owner` | Likewise, as named then |
+| `requested_by`, `requested_at`, `justification`, `duration_days` | |
+| `approvals` | Each step: decision, approver, capacity, time and comment |
+| `approved_at`, `set_up_by`, `set_up_at`, `status` | |
+| `flags` | See below |
+
+The same data is available from the API: [`GET /requests`](/api-reference/introduction).
+
+<Info>
+  Names are snapshots. The person, their title and manager, the resource, its owner and the level are frozen when the request is made, so a ticket reads the same after renames and reorgs.
+</Info>
+
+## Tickets
+
+Tick requests and click **Print tickets**, or use **Evidence** on any request. Each ticket is one page (save as PDF from the print dialog) with:
+
+- **Request:** person and title, manager at the time, system and system owner, level, duration, requester, time and justification
+- **Approval:** the rule in force (and whether it was raised because the level is privileged), then each step with approver, capacity, decision and time
+- **Provisioning:** who set it up (or the integration), when, whether that was after approval, and the access's status today
+- **Notes for the reviewer:** any flags
+- **Full history** and a **record fingerprint**: a SHA-256 hash of the stored request, its approvals and its history. If any of them changes, the fingerprint changes.
+
+Generating tickets or the population is itself logged.
+
+## Flags
+
+| Flag | Exception? | Meaning |
+|---|---|---|
+| Pre-approved | No | Standard access on a resource with no approval step. Privileged levels never get here. |
+| Webhook | No | Set up automatically |
+| Approver set up | No | The same person approved and set it up |
+| Admin override | **Yes** | An admin approved on a designated approver's behalf |
+| Admin fallback | **Yes** | No designated approver was available, so an admin approved |
+| Self-approved | **Yes** | Nobody else could approve |
+| No manager | **Yes** | A manager step was approved by someone else (no manager on file) |
+
+## Outside the request process
+
+Three lists sit under the population:
+
+- **Access outside requests:** access [recorded by an admin](/guides/recording-existing-access) with its source, and access [detected in your IdP](/identity/directory-sync#group-mappings) without a request
+- **ac·modern admin changes:** who was made (or stopped being) an admin or owner
+- **Control changes:** approval rules, system owners, privileged levels and settings changed in the period
+
+## Control description
+
+A written description of how your process works, generated from your current settings (approval rules, privileged levels, admin override, pre-approved resources). Copy it into your control narrative or walkthrough notes, and check it against what you actually do.

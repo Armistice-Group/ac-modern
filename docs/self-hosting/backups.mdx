@@ -1,0 +1,33 @@
+---
+title: Backups
+description: What to back up, and how to restore.
+icon: archive
+---
+
+<CardGroup cols={2}>
+  <Card title="The database" icon="database">
+    SQLite: `ac-modern.db` (plus `-wal` and `-shm` files) in the data folder (`/data` in Docker). Postgres: your usual `pg_dump`.
+  </Card>
+  <Card title="The secret key" icon="key-round">
+    `secret.key` in the data folder, or your `ACM_SECRET_KEY`. Without it, stored secrets (SSO and integration tokens, signing keys) can't be decrypted.
+  </Card>
+</CardGroup>
+
+For SQLite, stop the container briefly and copy the data folder, or snapshot the volume:
+
+```sh
+docker compose stop ac-modern
+docker run --rm -v ac-modern_ac-modern-data:/data -v "$PWD":/backup alpine \
+  tar czf /backup/ac-modern-$(date +%F).tgz -C /data .
+docker compose start ac-modern
+```
+
+(The volume name depends on your compose project; `docker volume ls` shows it.)
+
+<Warning>
+  Keep the key with the database backup, but not in the same place as anything public. Anyone with both can read the stored tokens.
+</Warning>
+
+## Restoring
+
+Restore the database and the key (or set the same `ACM_SECRET_KEY`), then start ac·modern. Migrations bring an older backup up to date.

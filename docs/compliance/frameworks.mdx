@@ -1,0 +1,40 @@
+---
+title: SOC 2 and ISO 27001
+description: Where ac·modern helps you evidence common access-control criteria.
+icon: scale
+---
+
+ac·modern doesn't make you compliant: your auditor tests your controls, not your tools. What it gives you is a consistent process and the records auditors ask for. Here's where it usually helps. Check the wording of your own controls with your auditor.
+
+## SOC 2 (2017 Trust Services Criteria)
+
+<AccordionGroup>
+  <Accordion title="CC6.1: Logical access security">
+    A catalog of systems with named owners and defined access levels, privileged levels marked, single sign-on with SSO-required mode, and an audit log of access changes.
+  </Accordion>
+  <Accordion title="CC6.2: Registering and authorising users before granting access">
+    Every grant starts as a request with a justification and documented approval (approver, capacity, time) before setup. New-hire access is requested through onboarding. Removals on offboarding and expiry are recorded. Evidence: the population CSV and tickets.
+  </Accordion>
+  <Accordion title="CC6.3: Changing and removing access, least privilege">
+    Transfers request new access and remove old access together. Permission changes are their own request type. Privileged levels need the system owner. Time-limited access expires on its own. Periodic access reviews have exportable decisions.
+  </Accordion>
+</AccordionGroup>
+
+## ISO/IEC 27001:2022 Annex A
+
+| Control | How ac·modern helps |
+|---|---|
+| **A.5.15** Access control | Per-system rules: owner, approval rule, levels, durations |
+| **A.5.16** Identity management | Directory sync from your IdP; offboarding when the IdP deactivates someone |
+| **A.5.17** Authentication information | Only partly: ac·modern delegates sign-in to your IdP with SSO. It doesn't manage passwords for other systems. |
+| **A.5.18** Access rights | Requests, approvals, setup, expiry, removal and periodic reviews, all recorded |
+| **A.8.2** Privileged access rights | Privileged levels, owner approval, short durations, privileged-only evidence |
+
+## What auditors usually ask for
+
+- The population of access changes for the period: **Audit evidence → Population CSV**
+- Tickets for samples: **Print tickets** (one page each, with the record fingerprint)
+- Access reviews: **Reviews → Export evidence**
+- Terminated employees' access removal: offboarding removals in the population (type *Removal*, reason *Offboarding*)
+- Who can administer the tool itself: **ac·modern admin changes** on the evidence page
+- A description of the process: **Control description** on the evidence page

@@ -1,0 +1,29 @@
+---
+title: Google Workspace
+description: Add and remove group members, and suspend accounts.
+icon: mail
+---
+
+Google groups usually stand for more than a mailing list: shared drives, apps assigned to groups, and SAML apps that sign in with Google all follow group membership. Granting a group grants all of that.
+
+## Connect
+
+**Settings → Integrations → Google Workspace.** You need a service account with domain-wide delegation for:
+
+```
+https://www.googleapis.com/auth/admin.directory.group.member
+https://www.googleapis.com/auth/admin.directory.user
+```
+
+Paste its JSON key and the email of an admin to act as. It can be the same service account as [directory sync](/identity/directory-sync#google-workspace), with these scopes added.
+
+## Map access levels
+
+| Option | On grant | On removal |
+|---|---|---|
+| **Group** (`eng@acme.com`, as member, manager or owner) | Added to the group, or role updated | Removed from the group |
+| **The account itself** | Account unsuspended | Account suspended |
+
+<Note>
+  *The account itself* doesn't create accounts. If the person has no Google account yet, the request goes to the fulfillers to create it, then **Mark done**.
+</Note>

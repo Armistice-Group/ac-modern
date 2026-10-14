@@ -1,0 +1,35 @@
+---
+title: Cloud
+description: Running ac·modern as a hosted, multi-organisation service.
+icon: cloud
+---
+
+With `ACM_MODE=cloud`, ac·modern becomes a multi-tenant service:
+
+- **`/signup`** creates an organisation and its owner. `ACM_SIGNUP_ALLOW` limits who can sign up (for example `*@yourcompany.com`); empty means anyone.
+- **Several organisations per account.** Someone invited to a second organisation switches between them from the menu at the top of the sidebar, which also has **New organisation**.
+- **Everything is scoped by organisation.** Every table carries the organisation, every query filters on it, and a test checks that one organisation can't read or act on another's data.
+- **Email domains must be verified** with a DNS TXT record before single sign-on trusts them. See [Single sign-on](/identity/single-sign-on#email-domains).
+- **"Add to Slack"** uses one shared Slack app, when `ACM_SLACK_CLIENT_ID` is set. See [Slack](/integrations/slack#cloud-add-to-slack).
+- **Billing** with Stripe, when `ACM_STRIPE_SECRET_KEY` is set. See [Plans and seats](/billing/plans).
+
+<Warning>
+  Use Postgres (`ACM_DATABASE_URL`) in cloud mode. Several instances can share one database: migrations take an advisory lock, so instances starting together don't race.
+</Warning>
+
+## Minimal configuration
+
+```sh
+ACM_MODE=cloud
+ACM_DATABASE_URL=postgres://acm:…@db:5432/acm
+ACM_SECRET_KEY=<long random string>
+ACM_PUBLIC_URL=https://access.example.com
+ACM_SMTP_URL=smtps://…
+ACM_SMTP_FROM="ac·modern <access@example.com>"
+```
+
+<Info>
+  `ACM_SECRET_KEY` encrypts stored secrets (SSO client secrets, integration tokens, Slack and webhook signing keys). In the cloud, set it explicitly and keep it in your secret store; don't rely on the generated key file.
+</Info>
+
+See [Configuration](/self-hosting/configuration) for every setting.

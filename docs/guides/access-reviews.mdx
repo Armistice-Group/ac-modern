@@ -1,0 +1,27 @@
+---
+title: Access reviews
+description: Periodic campaigns where system owners confirm who should still have access.
+icon: clipboard-check
+---
+
+<Frame>
+  <img src="/screenshots/review.png" alt="An access review in progress" />
+</Frame>
+
+<Steps>
+  <Step title="Start a review">
+    **Reviews → Start a review** (admins). Name it (*"Q3 2026 access review"*), set a due date, and pick resources, or leave them all unticked to review everything.
+  </Step>
+  <Step title="Reviewers decide">
+    Every active grant on those resources becomes an item, assigned to the resource's owner (else its first approver, else whoever started the review). Nobody reviews their own access: those items go to whoever started the review. Reviewers are notified and see a badge on **Reviews**.
+
+    Each item is **Keep** or **Revoke**. **Keep all undecided** handles a resource in one click. Revoking opens a removal with the reason *Access review*.
+  </Step>
+  <Step title="Close and export">
+    **Close review** when you're done; undecided items are left as they are. **Export evidence** downloads every item with its reviewer, decision and time.
+  </Step>
+</Steps>
+
+<Tip>
+  Quarterly reviews are common, and SOC 2 and ISO 27001 auditors usually ask for them. Reviews include access recorded by hand and access detected from IdP groups, not just access requested through ac·modern.
+</Tip>

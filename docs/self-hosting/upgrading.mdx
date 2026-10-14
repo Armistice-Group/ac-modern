@@ -1,0 +1,25 @@
+---
+title: Upgrading
+description: Move to a new version.
+icon: arrow-up-circle
+---
+
+<Steps>
+  <Step title="Back up">
+    The database and the secret key. See [Backups](/self-hosting/backups).
+  </Step>
+  <Step title="Pull and restart">
+    ```sh
+    git pull
+    docker compose up -d --build
+    ```
+    or pull the new image tag if you publish one.
+  </Step>
+  <Step title="Check">
+    Migrations run on startup. The version shows at the bottom of the sidebar and in `/api/health`.
+  </Step>
+</Steps>
+
+<Note>
+  Migrations only add things. Rolling back to an older version after a migration isn't supported: restore the backup instead.
+</Note>

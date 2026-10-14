@@ -1,0 +1,105 @@
+---
+title: Directory sync
+description: Keep people, managers, admins and IdP-granted access in step with your identity provider.
+icon: users
+---
+
+<Frame>
+  <img src="/screenshots/settings-directory.png" alt="Directory sync settings" />
+</Frame>
+
+Your identity provider decides who works here. With directory sync, ac·modern:
+
+- **Adds people** with their title and manager (turn off **Add new people automatically** to only update people who are already members)
+- **Offboards or deactivates** people your IdP deactivates or removes
+- **Reactivates** people the IdP re-enables, if it was the IdP that deactivated them. Someone offboarded by hand stays offboarded.
+- Maps **IdP groups** to ac·modern admins, or to access levels
+
+Set it up in **Settings → Directory sync**. One directory per organisation.
+
+## Choosing a source
+
+<CardGroup cols={2}>
+  <Card title="SCIM (push)" icon="arrow-down-to-line">
+    Okta, Entra ID, JumpCloud, OneLogin, Rippling and others push changes as they happen.
+  </Card>
+  <Card title="Google Workspace (pull)" icon="mail">
+    Read through the Admin SDK with a service account.
+  </Card>
+  <Card title="Okta API (pull)" icon="shield">
+    An API token. Doesn't need Okta's Lifecycle Management add-on, which SCIM provisioning to custom apps requires.
+  </Card>
+  <Card title="Microsoft Entra ID (pull)" icon="building-2">
+    Microsoft Graph with an app registration.
+  </Card>
+</CardGroup>
+
+Pulled sources sync every 30 minutes (`ACM_DIRECTORY_SYNC_MINUTES`) and on **Sync now**.
+
+## SCIM
+
+<Steps>
+  <Step title="Choose SCIM and connect">
+    Then **Generate token**. It's shown once; generating a new one stops the old one working.
+  </Step>
+  <Step title="Configure your IdP">
+    <Tabs>
+      <Tab title="Okta">
+        Create an app integration with SCIM 2.0 provisioning, using header authentication (Bearer token). Base URL: `https://<your ac·modern>/scim/v2`, unique identifier `userName`. Enable *Create users*, *Update user attributes* and *Deactivate users*. Use **Push Groups** for the groups you want to map.
+      </Tab>
+      <Tab title="Microsoft Entra ID">
+        **Enterprise applications → New application → Create your own (non-gallery) → Provisioning → Automatic.** Tenant URL: `https://<your ac·modern>/scim/v2`. Secret token: the SCIM token. Assign the users and groups to provision and start provisioning.
+      </Tab>
+      <Tab title="JumpCloud / OneLogin">
+        Add a custom SCIM 2.0 application with the same base URL and a Bearer token, then enable user and group provisioning.
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+The endpoints are documented in the [SCIM reference](/api-reference/scim). Managers come from the enterprise extension's `manager` attribute.
+
+## Google Workspace
+
+1. In Google Cloud, create a service account and a JSON key, and note its client ID.
+2. In the Admin console, **Security → API controls → Domain-wide delegation**, add that client ID with these scopes:
+   ```
+   https://www.googleapis.com/auth/admin.directory.user.readonly
+   https://www.googleapis.com/auth/admin.directory.group.readonly
+   https://www.googleapis.com/auth/admin.directory.group.member.readonly
+   ```
+3. Paste the JSON key and the email of an admin for the service account to act as.
+
+Suspended and archived users count as inactive. Managers come from the user's *manager* relation.
+
+## Okta API
+
+Create an API token (**Security → API → Tokens**) as a read-only administrator, and enter your Okta domain (`acme.okta.com`) and the token. Users in states other than active, password expired, locked out or recovery count as inactive. The built-in *Everyone* group is skipped. Managers match when the profile's `managerId` (or `manager`) holds an Okta user id or email.
+
+## Microsoft Entra ID
+
+Register an app with the **application** permissions `User.Read.All` and `GroupMember.Read.All` (grant admin consent), create a client secret, and enter the tenant ID, client ID and secret. Guests are skipped, disabled accounts count as inactive, and group membership includes nested groups.
+
+## When someone is deactivated
+
+| Setting | Effect |
+|---|---|
+| **Offboard (remove all their access)** | The same as [offboarding](/guides/offboarding): removals open for everything they hold, with the reason *Removed in the IdP*. |
+| **Only deactivate them here** | Their ac·modern account is deactivated and their access is left alone. |
+
+Owners are never deactivated by the directory. It logs that you need to do it by hand.
+
+## Group mappings
+
+Under **Groups**, map any IdP group to:
+
+- **ac·modern admins:** members of the group become admins. Leaving the group makes them members again. Owners and admins you made by hand aren't touched.
+- **An access level** (for example *github-owners* means *GitHub · Owner*): group members are treated as holding that access. It's detected and recorded as a grant with the source *IdP*, and ends when they leave the group.
+
+<Warning>
+  Access detected from an IdP group without a matching request is listed in the [audit evidence](/compliance/audit-evidence) as *Detected in the IdP without a request*. That makes the sync a detective control. Access requested and approved here first isn't flagged.
+</Warning>
+
+## Switching directories
+
+Choosing a different source clears the old directory's records and its group mappings. People, their roles and their access stay; nobody is deactivated by the switch.

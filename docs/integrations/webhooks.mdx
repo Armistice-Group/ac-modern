@@ -1,0 +1,78 @@
+---
+title: Webhooks
+description: Provision access with your own script or automation.
+icon: webhook
+---
+
+Choose **Webhook** as a resource's setup method to send approved grants and removals to your own endpoint: a script, n8n, Zapier, a Lambda.
+
+## The request
+
+```http
+POST <your url>
+content-type: application/json
+user-agent: ac-modern
+x-acm-event: access.grant
+x-acm-timestamp: 1760000000
+x-acm-signature: sha256=<hex HMAC-SHA256(secret, timestamp + "." + body)>
+```
+
+```json
+{
+  "event": "access.grant",
+  "request": { "id": "…", "number": 42, "reason": "request", "url": "https://access.example.com/requests/42" },
+  "user": { "id": "…", "email": "dev@acme.com", "name": "Dev" },
+  "resource": { "id": "…", "name": "GitHub" },
+  "role": { "id": "…", "name": "Member" },
+  "durationDays": 30,
+  "grantId": null
+}
+```
+
+<ResponseField name="event" type="string">
+  `access.grant` or `access.revoke`.
+</ResponseField>
+<ResponseField name="request.reason" type="string">
+  For removals: `request` (they gave it up), `expired`, `review`, `offboarding`, `transfer`, `manual` or `directory`.
+</ResponseField>
+<ResponseField name="grantId" type="string | null">
+  For removals and extensions, the grant being changed.
+</ResponseField>
+
+## Responding
+
+Answer **2xx** once the access is in place (or gone). Anything else, or no answer within **15 seconds**, leaves the request open: the error is logged and the fulfillers get it by hand, with a **Retry** button.
+
+## Verifying the signature
+
+Generate a signing secret in the resource editor. It's shown once and stored encrypted. Without one, requests aren't signed.
+
+<CodeGroup>
+```js Node.js
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+export function verify(rawBody, headers, secret) {
+	const ts = headers['x-acm-timestamp'];
+	const sig = headers['x-acm-signature'] ?? '';
+	if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+	const want = 'sha256=' + createHmac('sha256', secret).update(`${ts}.${rawBody}`).digest('hex');
+	return sig.length === want.length && timingSafeEqual(Buffer.from(sig), Buffer.from(want));
+}
+```
+
+```python Python
+import hashlib, hmac, time
+
+def verify(raw_body: bytes, headers: dict, secret: str) -> bool:
+    ts = headers.get("x-acm-timestamp", "")
+    sig = headers.get("x-acm-signature", "")
+    if not ts or abs(time.time() - int(ts)) > 300:
+        return False
+    want = "sha256=" + hmac.new(secret.encode(), f"{ts}.".encode() + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(sig, want)
+```
+</CodeGroup>
+
+<Tip>
+  Verify against the raw request body, before parsing the JSON. The five-minute window is a suggestion: ac·modern sends the current time, so you can choose your own tolerance.
+</Tip>

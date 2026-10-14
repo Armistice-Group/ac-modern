@@ -1,0 +1,37 @@
+---
+title: Fulfilling
+description: Setting up approved access, and removing it, by hand or automatically.
+icon: wrench
+---
+
+Once approved, a request moves to **Being set up**. How it gets done depends on the resource's setup method.
+
+<Tabs>
+  <Tab title="By hand">
+    The resource's fulfillers (else its owner, else admins) get a task: under **Requests → To set up**, on the overview, by email and in Slack. They make the change in the tool, then click **Mark done**, optionally with a note (*"Invited to the org"*). The grant starts then, and its expiry is counted from that moment.
+
+    Removals work the same way: the task says what to take away, and **Mark done** ends the grant.
+  </Tab>
+  <Tab title="Integration">
+    With a built-in integration, ac·modern makes the change itself and completes the request with a note of what it did, for example *"GitHub: @dev added to team platform as member"*.
+
+    <CardGroup cols={3}>
+      <Card title="GitHub" href="/integrations/github" icon="git-branch" />
+      <Card title="Google Workspace" href="/integrations/google-workspace" icon="mail" />
+      <Card title="Okta" href="/integrations/okta" icon="shield" />
+      <Card title="Authentik" href="/integrations/authentik" icon="shield-check" />
+      <Card title="Microsoft Entra ID" href="/integrations/entra" icon="building-2" />
+    </CardGroup>
+  </Tab>
+  <Tab title="Webhook">
+    A signed POST to your own script or automation (n8n, Zapier, a Lambda). A 2xx answer completes the request. See [Webhooks](/integrations/webhooks).
+  </Tab>
+</Tabs>
+
+## When automation fails
+
+If a webhook or integration fails (an error, a timeout, a person with no account in the IdP), the request stays **Being set up**. The error goes into its history, and the fulfillers get the task by hand with the reason. They can fix the cause and **Retry**, or do it themselves and **Mark done**.
+
+<Tip>
+  Approval always comes first. Nothing is set up until every approval step is done, and the evidence shows setup time after approval time.
+</Tip>

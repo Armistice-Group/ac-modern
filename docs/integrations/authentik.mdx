@@ -1,0 +1,25 @@
+---
+title: Authentik
+description: Grant access through Authentik groups.
+icon: shield-check
+---
+
+In Authentik, applications are usually gated by policy bindings on groups. Adding someone to the group is what grants the app.
+
+## Connect
+
+**Settings → Integrations → Authentik.** Enter your Authentik base URL (`https://auth.example.com`) and an API token for a user that can edit groups, such as a service account with the permissions to change group membership.
+
+## Map access levels
+
+Each access level maps to an **Authentik group**, listed from your instance.
+
+| On grant | On removal |
+|---|---|
+| Added to the group | Removed from the group |
+
+People are found by email. If someone has no Authentik account, the request goes to the fulfillers with that error. On removal, someone with no account counts as already removed.
+
+<Note>
+  Authentik can also be your [single sign-on](/identity/single-sign-on) provider, as an OIDC application.
+</Note>

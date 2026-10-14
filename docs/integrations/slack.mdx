@@ -1,0 +1,49 @@
+---
+title: Slack
+description: Approve and deny from Slack, and keep requesters up to date.
+icon: message-square
+---
+
+With the Slack app connected:
+
+- **Approvers** get a direct message for each request waiting on them, with **Approve**, **Deny…** and **Open**. *Deny…* opens a form asking why; the requester sees the reason.
+- **Requesters and fulfillers** get the same updates by direct message as by email.
+
+People are matched between Slack and ac·modern by email. Clicking a button is exactly like approving on the web: only the current step's approvers can act, and the audit log records the approval *via Slack*.
+
+## Self-hosted: create the app
+
+<Steps>
+  <Step title="Create the app from our manifest">
+    **Settings → Integrations → Slack app** has a link that opens Slack's *Create an app from a manifest* with everything filled in: the bot user, scopes `chat:write`, `im:write`, `users:read`, `users:read.email`, and interactivity pointing at:
+
+    ```
+    https://<your ac·modern>/api/slack/interactions
+    ```
+
+    Slack has to be able to reach that URL over the internet.
+  </Step>
+  <Step title="Install it and connect">
+    Install the app to your workspace, then paste the **Bot User OAuth Token** (`xoxb-…`) and the **Signing Secret** (under *Basic Information*).
+  </Step>
+</Steps>
+
+## Cloud: Add to Slack
+
+Operators of a cloud install create one Slack app for all organisations and set:
+
+```sh
+ACM_SLACK_CLIENT_ID=…
+ACM_SLACK_CLIENT_SECRET=…
+ACM_SLACK_SIGNING_SECRET=…
+```
+
+with redirect URL `https://<your ac·modern>/api/slack/oauth` and interactivity URL `https://<your ac·modern>/api/slack/interactions`. Admins then see **Add to Slack** instead of the manual steps. A Slack workspace can be connected to one organisation.
+
+## Security
+
+Every interaction is verified with Slack's request signature, and anything older than five minutes is rejected.
+
+## Channel notifications
+
+Separately, **Settings → General → Notifications** takes a Slack **incoming webhook** URL. New requests and granted access are posted to that channel. It's stored encrypted, and **Send test** checks it.

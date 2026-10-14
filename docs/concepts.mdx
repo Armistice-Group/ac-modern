@@ -1,0 +1,71 @@
+---
+title: Concepts
+description: Resources, access levels, requests, grants and reviews, and how they fit together.
+icon: shapes
+---
+
+## Organisations and roles
+
+Everything belongs to an **organisation**. Members have one of three roles:
+
+| Role | Can |
+|---|---|
+| **Owner** | Everything, including making other owners. Keeps password sign-in when SSO is required (break-glass). |
+| **Admin** | Manage resources, people, settings, integrations and evidence. |
+| **Member** | Request access, approve and set up when assigned, review assigned grants. |
+
+People can also have a **manager** (set by hand or from your IdP). Managers approve their reports' requests where a resource asks for manager approval, and can onboard and transfer their reports from **Your team**.
+
+## Resources and access levels
+
+A **resource** is something people need access to: an app, an account, a database, a shared drive. Each one has:
+
+- **Access levels**, lowest first (for example *Read-only* and *Read-write*). Levels can be marked **privileged** (admin, owner, write access to production). See [Privileged access](/compliance/privileged-access).
+- An **owner**: the system owner. They review its access and are the fallback approver.
+- An **approval rule**: none, the requester's manager, resource approvers, or the manager then an approver.
+- **Approvers** and **fulfillers** (the people who set it up).
+- A **setup method**: by hand, a [webhook](/integrations/webhooks), or a built-in integration.
+- A **longest allowed** and **default** duration, or no time limit.
+
+Members only see resources that are **in the catalog**. Admins can request the rest on someone's behalf.
+
+## Requests
+
+A **request** asks for one access level on one resource for one person, with a reason. It moves through:
+
+1. **Awaiting approval**: one or two steps, depending on the approval rule.
+2. **Being set up**: the fulfillers, the webhook or the integration do the work.
+3. **Done**, or **Denied**, or **Cancelled**.
+
+A **removal** is a request too. It opens when access expires, a review revokes it, someone is offboarded or transferred, an admin revokes it, or the holder gives it up. Removals never need approval.
+
+### Request types
+
+Every request is classified, so auditors can sample by type:
+
+| Type | When |
+|---|---|
+| **New hire** | Made through onboarding, or for someone who joined in the last 30 days |
+| **Transfer** | Made through a transfer |
+| **Permission change** | A different level on a resource they already have |
+| **Additional access** | A resource they didn't have |
+| **Extension** | More time on access they hold |
+| **Removal** | Access being taken away |
+
+### Who approves
+
+The approvers for a step are, in order: the requester's manager (on manager steps), the resource's approvers, the resource owner, then the organisation's admins. The person the request is for is never their own approver, unless nobody else could approve (a one-person team), and then it's recorded as self-approved.
+
+Each approval records the approver's **capacity**: Manager, System owner, Designated approver, Admin (fallback), Admin override, or Self-approved. See [Approving](/guides/approving).
+
+## Grants
+
+A **grant** is access someone has: person, resource, level, since when and until when. Grants come from completed requests, from [recording existing access](/guides/recording-existing-access), or from [IdP groups](/identity/directory-sync#group-mappings). When a grant expires, a removal opens automatically. People are reminded before expiry (3 days by default, changeable in **Settings → General**).
+
+## Reviews
+
+An **access review** asks each resource owner to keep or revoke every active grant on their resources. Revoking opens a removal. See [Access reviews](/guides/access-reviews).
+
+## The audit log
+
+Every request, decision, grant, setting change and sign-in method change is in the **audit log**, newest first, exportable as CSV. The [audit evidence](/compliance/audit-evidence) page builds on it.

@@ -1,0 +1,32 @@
+---
+title: Reverse proxy and TLS
+description: Run ac·modern behind Caddy, Traefik, nginx or a load balancer.
+icon: lock
+---
+
+ac·modern serves plain HTTP on port 3000 and expects TLS to end at your proxy. Tell it which headers to trust:
+
+```sh
+PROTOCOL_HEADER=x-forwarded-proto
+HOST_HEADER=x-forwarded-host
+ACM_PUBLIC_URL=https://access.example.com
+```
+
+This matters for three things:
+
+- **Secure cookies:** sessions are marked `Secure` only when the request was HTTPS.
+- **SSO callbacks:** the redirect URI is built from the public address.
+- **Links** in emails, Slack and webhooks use `ACM_PUBLIC_URL`.
+
+<Warning>
+  Slack interactivity, Stripe webhooks and SCIM from a cloud IdP need ac·modern to be reachable from the internet. Expose just those paths if you'd rather keep the rest private:
+
+  - `/api/slack/interactions`, `/api/slack/oauth`
+  - `/api/billing/webhook`
+  - `/scim/v2/`
+  - `/api/v1/` (for a cloud GRC tool)
+</Warning>
+
+## Health check
+
+`GET /api/health` returns `{ "ok": true, "version": "…", "database": "sqlite" | "postgres" }`, or 503 if the database is unreachable. The Docker image uses it as its health check.

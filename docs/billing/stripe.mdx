@@ -1,0 +1,42 @@
+---
+title: Stripe setup
+description: For operators of a cloud install.
+icon: banknote
+---
+
+<Steps>
+  <Step title="Create the price">
+    In Stripe, create a product with a **recurring, per-unit** price (for example $4 per month). Each unit is one active person.
+  </Step>
+  <Step title="Set the environment">
+    ```sh
+    ACM_STRIPE_SECRET_KEY=sk_live_…
+    ACM_STRIPE_PRICE_ID=price_…
+    ACM_PRICE_LABEL="$4 per person / month"
+    ACM_FREE_SEATS=5
+    ACM_TRIAL_DAYS=14
+    ```
+  </Step>
+  <Step title="Add the webhook">
+    Point a Stripe webhook at `https://<your ac·modern>/api/billing/webhook` with these events:
+
+    - `checkout.session.completed`
+    - `customer.subscription.created`, `.updated`, `.deleted`, `.paused`, `.resumed`
+
+    Set its signing secret as `ACM_STRIPE_WEBHOOK_SECRET`. Events are verified, and anything older than five minutes is rejected.
+  </Step>
+  <Step title="Configure the Customer Portal">
+    In Stripe's settings, enable the Customer Portal with payment method updates, invoice history and cancellation.
+  </Step>
+</Steps>
+
+## What ac·modern does
+
+- Creates a Stripe customer per organisation, tagged with its id
+- Starts Checkout with a quantity equal to active members, with a trial on the first subscription only
+- Updates the subscription quantity when the team changes (checked on the job interval, prorated)
+- Treats `trialing`, `active` and `past_due` as paid. Everything else is the free tier.
+
+<Note>
+  Without `ACM_STRIPE_SECRET_KEY`, billing is off and every organisation has everything.
+</Note>

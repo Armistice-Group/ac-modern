@@ -115,3 +115,13 @@ async function slackDms(db: Db, n: Notice, emails: string[], link: string) {
 }
 
 const escape = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
+/** One email to one address (password resets). Returns whether SMTP actually sent it. */
+export async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
+	outbox.push({ to, subject, text });
+	if (outbox.length > 200) outbox.shift();
+	const t = await mailer();
+	if (!t) return false;
+	await t.sendMail({ from: config.smtp!.from, to, subject, text });
+	return true;
+}

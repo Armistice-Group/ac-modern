@@ -1,4 +1,4 @@
-import { json, type RequestEvent } from '@sveltejs/kit';
+import type { RequestEvent } from '@sveltejs/kit';
 import type { Org, Role, SessionUser } from '#lib/types.ts';
 
 export class HttpError extends Error {
@@ -22,10 +22,10 @@ export function handler(fn: (event: RequestEvent) => Promise<Response> | Respons
 		try {
 			return await fn(event);
 		} catch (err) {
-			if (err instanceof HttpError) return json({ message: err.message, ...err.extra }, { status: err.status });
+			if (err instanceof HttpError) return Response.json({ message: err.message, ...err.extra }, { status: err.status });
 			if (err instanceof Response) return err;
 			console.error('[ac-modern]', err);
-			return json({ message: 'Something went wrong on the server' }, { status: 500 });
+			return Response.json({ message: 'Something went wrong on the server' }, { status: 500 });
 		}
 	};
 }

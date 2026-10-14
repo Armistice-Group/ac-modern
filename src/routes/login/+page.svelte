@@ -67,9 +67,8 @@
 		hint={data.cloud ? 'New here? <a class="text-primary hover:underline" href="/signup">Create an organisation</a>' : undefined}
 		onsubmit={login}
 	/>
-	{#if data.cloud}
-		<div class="fixed inset-x-0 bottom-8 text-center">
-			<button class="btn btn-secondary btn-sm" onclick={() => (ssoMode = true)}><KeyRound />Sign in with SSO</button>
-		</div>
-	{/if}
+	<div class="fixed inset-x-0 bottom-8 flex items-center justify-center gap-3 text-xs">
+		<a class="btn btn-ghost btn-sm" href="/forgot-password">Forgot password?</a>
+		{#if data.cloud}<button class="btn btn-secondary btn-sm" onclick={() => (ssoMode = true)}><KeyRound />Sign in with SSO</button>{/if}
+	</div>
 {/if}

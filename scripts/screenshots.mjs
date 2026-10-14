@@ -25,7 +25,7 @@ async function start() {
 	console.log('• seeding demo data');
 	execFileSync('node', ['--no-warnings', '--experimental-strip-types', 'scripts/seed.ts'], { cwd: ROOT, env, stdio: 'inherit' });
 	console.log('• starting ac·modern');
-	server = spawn('pnpm', ['exec', 'vite', 'dev', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { cwd: ROOT, env, stdio: 'ignore' });
+	server = spawn('npx', ['vite', 'dev', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { cwd: ROOT, env, stdio: 'ignore' });
 	APP = `http://127.0.0.1:${PORT}`;
 	for (let i = 0; i < 60; i++) {
 		try {

@@ -14,7 +14,8 @@
 		"seed": "node --no-warnings --experimental-strip-types scripts/seed.ts",
 		"screenshots": "node scripts/screenshots.mjs",
 		"docs:openapi": "node --no-warnings --experimental-strip-types scripts/openapi.ts",
-		"docs:dev": "pnpm docs:openapi && cd docs && npx --yes mint@latest dev"
+		"docs:dev": "pnpm docs:openapi && cd docs && npx --yes mint@latest dev",
+		"cli": "node --no-warnings --experimental-strip-types scripts/cli.ts"
 	},
 	"imports": {
 		"#lib/*": "./src/lib/*"

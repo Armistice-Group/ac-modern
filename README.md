@@ -133,7 +133,7 @@ docker compose up -d
 # open http://<host>:3040 and create your organisation
 ```
 
-The image is `ghcr.io/armistice-group/ac-modern` (linux/amd64 and linux/arm64), built from `main` and from `v*` tags. One container, no other services needed. Data lives in a SQLite file in the `/data` volume, with a generated `secret.key` that encrypts stored secrets (Slack URL, webhook signing keys). Back up both, or set `ACM_SECRET_KEY`. To use Postgres instead, set `ACM_DATABASE_URL=postgres://…` (there's a commented service in `compose.yaml`). All settings are in [`.env.example`](.env.example).
+The image is `ghcr.io/armistice-group/ac-modern` (linux/amd64 and linux/arm64), built from `main` and from `v*` tags. One container, no other services needed. The first visit opens the setup wizard, which creates your organisation and its owner; set `ACM_ADMIN_EMAIL` and `ACM_ADMIN_PASSWORD` to create them on first start instead. Locked out? See [account recovery](docs/self-hosting/account-recovery.mdx): reset links, and `docker exec ac-modern ac-modern reset-password you@example.com`. Data lives in a SQLite file in the `/data` volume, with a generated `secret.key` that encrypts stored secrets (Slack URL, webhook signing keys). Back up both, or set `ACM_SECRET_KEY`. To use Postgres instead, set `ACM_DATABASE_URL=postgres://…` (there's a commented service in `compose.yaml`). All settings are in [`.env.example`](.env.example).
 
 ## Hosted (cloud) mode
 
@@ -167,6 +167,8 @@ x-acm-signature: sha256=<hex HMAC-SHA256(secret, timestamp + "." + body)>
 Answer 2xx once access is in place. Anything else (or a timeout after 15 s) leaves the request open for the fallback people, who can retry from the request page.
 
 ## Development
+
+Node 24+ (26 recommended, see `.nvmrc`) and pnpm 12: `npm install -g pnpm@12` (Node 24's corepack can't run pnpm 12, and Node 26 no longer ships corepack).
 
 ```sh
 pnpm install

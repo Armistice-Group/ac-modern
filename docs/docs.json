@@ -99,6 +99,7 @@
               "self-hosting/postgres",
               "self-hosting/reverse-proxy",
               "self-hosting/backups",
+              "self-hosting/account-recovery",
               "self-hosting/upgrading"
             ]
           },

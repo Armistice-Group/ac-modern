@@ -1,0 +1,58 @@
+---
+title: Account recovery
+description: Forgotten passwords, admin-sent reset links, and the command line for when nothing else works.
+icon: life-buoy
+---
+
+## Forgot password
+
+**Sign in → Forgot password?** sends a link to set a new password. It works once, expires in an hour, and signs the account out everywhere once used. The page answers the same whether or not the address has an account, so it can't be used to find out who does.
+
+<Note>
+  Without email configured (`ACM_SMTP_URL`), a self-hosted install writes the link to the server log instead:
+  ```sh
+  docker logs ac-modern 2>&1 | grep reset-password
+  ```
+</Note>
+
+## An admin sends a reset link
+
+On a person's page, **Reset password** sends them a link that lasts a day. Without email configured, the admin gets the link to pass on privately.
+
+- Only owners can send one to an owner.
+- You can't send one to yourself: change it under **Your account**.
+- In the cloud, it's refused for anyone who also belongs to another organisation. Their password is theirs across all of them, so only they can reset it.
+
+Every reset link sent or used is in the audit log.
+
+## From the command line
+
+For when email isn't set up and you're the one locked out, or the only owner has left. Run it inside the container:
+
+<CodeGroup>
+```sh Reset a password
+docker exec ac-modern ac-modern reset-password you@example.com
+# prints a new random password; or choose one:
+docker exec ac-modern ac-modern reset-password you@example.com --password 'a-long-new-password'
+```
+
+```sh Make someone an owner
+docker exec ac-modern ac-modern make-owner them@example.com
+# several organisations (cloud): pick one
+docker exec ac-modern ac-modern make-owner them@example.com --org acme
+```
+
+```sh From a checkout
+pnpm cli reset-password you@example.com
+```
+</CodeGroup>
+
+The command uses the server's own settings (`ACM_DATA_DIR`, `ACM_DATABASE_URL`), signs the account out everywhere, and writes the change to the audit log as done from the command line.
+
+<Warning>
+  Anyone who can run commands in the container can use these. That's the same people who can read the database, so it doesn't widen access, but keep shell access to the host limited.
+</Warning>
+
+## Before setup
+
+Until the setup wizard has run, whoever opens `/setup` first becomes the owner. If the server is reachable from the internet before you've set it up, create the owner from the environment instead (`ACM_ADMIN_EMAIL`, `ACM_ADMIN_PASSWORD`; see [Configuration](/self-hosting/configuration)), or finish setup before exposing it.

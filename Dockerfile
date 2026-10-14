@@ -23,7 +23,12 @@ RUN apk add --no-cache tzdata
 COPY --from=build /app/build ./build
 COPY --from=build /app/node_modules ./node_modules
 COPY package.json ./
-RUN mkdir -p /data && chown node:node /data
+# The break-glass command line (scripts/cli.ts) runs from source; Node 26 runs TypeScript directly.
+COPY --from=build /app/src/lib ./src/lib
+COPY --from=build /app/scripts/cli.ts ./scripts/cli.ts
+RUN printf '#!/bin/sh\ncd /app && exec node --disable-warning=ExperimentalWarning scripts/cli.ts "$@"\n' > /usr/local/bin/ac-modern \
+    && chmod +x /usr/local/bin/ac-modern \
+    && mkdir -p /data && chown node:node /data
 USER node
 VOLUME /data
 EXPOSE 3000

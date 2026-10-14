@@ -367,5 +367,18 @@ CREATE TABLE org_billing (
 	updated_at TEXT NOT NULL
 );
 CREATE INDEX org_billing_customer ON org_billing(customer_id)
+`,
+	// Password resets: emailed links (self-serve or sent by an admin), stored hashed.
+	`
+CREATE TABLE password_resets (
+	id TEXT PRIMARY KEY,
+	user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	token_hash TEXT NOT NULL UNIQUE,
+	created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+	created_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL,
+	used_at TEXT
+);
+CREATE INDEX password_resets_user ON password_resets(user_id)
 `
 ];

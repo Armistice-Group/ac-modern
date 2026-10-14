@@ -44,7 +44,7 @@
 		if (window.innerWidth < 768) collapsed = true;
 	});
 
-	const bare = $derived(!data.org || ['/login', '/setup', '/signup', '/evidence/print'].includes(page.url.pathname) || page.url.pathname.startsWith('/invite/'));
+	const bare = $derived(!data.org || ['/login', '/setup', '/signup', '/forgot-password', '/evidence/print'].includes(page.url.pathname) || page.url.pathname.startsWith('/invite/') || page.url.pathname.startsWith('/reset-password/'));
 	const admin = $derived(data.viewer?.role === 'owner' || data.viewer?.role === 'admin');
 
 	const main = $derived([

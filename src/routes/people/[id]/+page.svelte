@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { UserMinus, UserCheck, LoaderCircle, UserPlus, ArrowLeftRight } from '@lucide/svelte';
+	import { UserMinus, UserCheck, LoaderCircle, UserPlus, ArrowLeftRight, KeyRound, Copy } from '@lucide/svelte';
+	import Dialog from '#lib/components/Dialog.svelte';
 	import AccessChangeDialog from '#lib/components/AccessChangeDialog.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
@@ -65,6 +66,26 @@
 		}
 	}
 
+	let resetLink = $state('');
+	let resetOpen = $state(false);
+	async function sendReset() {
+		const ok = await confirmAction({
+			title: `Send ${displayName(p)} a password reset link?`,
+			body: 'They get a link to set a new password. It works once and expires in a day. Their current password keeps working until they use it.',
+			confirmLabel: 'Send link'
+		});
+		if (!ok) return;
+		try {
+			const r = await api.post<{ emailed: boolean; link?: string }>(`/api/people/${p.id}/reset-password`, {});
+			if (r.link) {
+				resetLink = r.link;
+				resetOpen = true;
+			} else toast('success', 'Reset link sent', `Emailed to ${p.email}.`);
+		} catch (err) {
+			toast('error', 'Couldn’t send it', errorMessage(err));
+		}
+	}
+
 	async function reactivate() {
 		try {
 			await api.post(`/api/people/${p.id}/reactivate`, {});
@@ -84,6 +105,7 @@
 			{#if !self}
 				<button class="btn btn-secondary" onclick={() => openChange('onboarding')}><UserPlus />Onboard</button>
 				<button class="btn btn-secondary" onclick={() => openChange('transfer')}><ArrowLeftRight />Transfer</button>
+				{#if data.admin && (p.role !== 'owner' || data.myRole === 'owner')}<button class="btn btn-ghost" onclick={sendReset}><KeyRound />Reset password</button>{/if}
 				{#if data.admin}<button class="btn btn-danger-outline" onclick={offboard}><UserMinus />Offboard</button>{/if}
 			{/if}
 		{:else}
@@ -183,3 +205,12 @@
 		admin={data.admin}
 	/>
 {/if}
+
+<Dialog bind:open={resetOpen} title="Reset link for {displayName(p)}" description="Email isn’t configured, so send this to them yourself. It works once and expires in a day.">
+	<div class="flex gap-2">
+		<input class="input font-mono text-[0.6875rem]" readonly value={resetLink} onfocus={(e) => e.currentTarget.select()} />
+		<button class="btn btn-secondary" onclick={() => (navigator.clipboard.writeText(resetLink), toast('success', 'Copied'))}><Copy />Copy</button>
+	</div>
+	<p class="mt-2 text-[0.6875rem] text-warning">Anyone with this link can set their password. Send it privately.</p>
+	{#snippet footer()}<button class="btn btn-primary" onclick={() => (resetOpen = false)}>Done</button>{/snippet}
+</Dialog>

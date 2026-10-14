@@ -4,18 +4,23 @@
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
 	import { toast } from '#lib/client/state.svelte.ts';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
 
 	let name = $state('');
+	let github = $state('');
 	let current = $state('');
 	let next = $state('');
 	$effect(() => {
 		name = page.data.viewer?.name ?? '';
+		github = data.githubLogin;
 	});
 
 	async function saveName(e: SubmitEvent) {
 		e.preventDefault();
 		try {
-			await api.patch('/api/account', { name });
+			await api.patch('/api/account', { name, githubLogin: github });
 			toast('success', 'Saved');
 			await invalidateAll();
 		} catch (err) {
@@ -41,11 +46,12 @@
 
 <div class="max-w-xl space-y-6 px-8 pb-10">
 	<form class="card p-5" onsubmit={saveName}>
-		<label class="label" for="name">Name</label>
-		<div class="flex gap-2">
-			<input id="name" class="input" bind:value={name} maxlength="120" />
-			<button class="btn btn-secondary">Save</button>
+		<div class="grid gap-3 sm:grid-cols-2">
+			<div><label class="label" for="name">Name</label><input id="name" class="input" bind:value={name} maxlength="120" /></div>
+			<div><label class="label" for="gh">GitHub username</label><input id="gh" class="input font-mono text-xs" placeholder="octocat" bind:value={github} maxlength="40" /></div>
 		</div>
+		<p class="mt-2 text-[0.6875rem] text-muted-foreground">Your GitHub username lets approved GitHub access be added and removed automatically.</p>
+		<button class="btn btn-secondary mt-3">Save</button>
 	</form>
 	<form class="card space-y-3 p-5" onsubmit={savePassword}>
 		<h2 class="text-[0.9375rem] font-semibold tracking-tight">Change password</h2>

@@ -100,7 +100,14 @@ export async function createUser(db: Db, u: { email: string; name: string; passw
 	return user;
 }
 
-export async function updateUser(db: Db, id: string, patch: { name?: string; passwordHash?: string }) {
+export const GITHUB_LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+
+export async function updateUser(db: Db, id: string, patch: { name?: string; passwordHash?: string; githubLogin?: string }) {
+	if (patch.githubLogin !== undefined) {
+		const login = patch.githubLogin.trim().replace(/^@/, '');
+		if (login && !GITHUB_LOGIN_RE.test(login)) throw badRequest('That isn’t a valid GitHub username');
+		await db.run('UPDATE users SET github_login = ? WHERE id = ?', [login, id]);
+	}
 	if (patch.name !== undefined) await db.run('UPDATE users SET name = ? WHERE id = ?', [patch.name, id]);
 	if (patch.passwordHash !== undefined) await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [patch.passwordHash, id]);
 }

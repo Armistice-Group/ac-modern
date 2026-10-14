@@ -9,5 +9,5 @@
 
 <PageHeader title="Add a resource" description="Something people need access to: an app, an account, a database, a shared drive." />
 <div class="px-8 pb-10">
-	<ResourceForm people={data.people} defaultApproval={data.defaultApproval} origin={data.origin} />
+	<ResourceForm people={data.people} defaultApproval={data.defaultApproval} origin={data.origin} integrations={data.integrations} />
 </div>

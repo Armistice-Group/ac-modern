@@ -10,6 +10,7 @@ export const PATCH = handler(async (event) => {
 	const b = await body(event);
 	const d = await db();
 	if (b.name !== undefined) await updateUser(d, user.id, { name: str(b, 'name', { max: 120 }) });
+	if (b.githubLogin !== undefined) await updateUser(d, user.id, { githubLogin: str(b, 'githubLogin', { max: 40 }) });
 	if (b.newPassword !== undefined) {
 		const current = await userByEmail(d, user.email);
 		if (!verifyPassword(str(b, 'currentPassword', { max: 500 }), current?.password_hash ?? null)) throw badRequest('Your current password is wrong');

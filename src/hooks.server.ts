@@ -9,7 +9,7 @@ export const init: ServerInit = () => {
 	startJobs();
 };
 
-const PUBLIC = ['/login', '/setup', '/signup', '/invite/', '/auth/oidc/', '/api/auth/', '/api/health'];
+const PUBLIC = ['/login', '/setup', '/signup', '/invite/', '/auth/oidc/', '/api/auth/', '/api/health', '/api/slack/interactions', '/api/slack/oauth'];
 /** Pages a signed-in user without an organisation can still open. */
 const NO_ORG_OK = ['/signup', '/account', '/api/account', '/api/orgs'];
 const ADMIN_PAGES = ['/resources/new', '/audit', '/settings', '/evidence'];
@@ -20,9 +20,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const method = event.request.method;
 	const isApi = pathname.startsWith('/api/');
 
-	// JSON APIs must come from our own host: browsers always send Origin on cross-site
-	// and non-GET requests, so a mismatch means a forged request.
-	if (isApi && method !== 'GET' && !pathname.startsWith('/api/v1/')) {
+	// Writes must come from our own host: browsers always send Origin on cross-site and
+	// non-GET requests, so a mismatch means a forged request. Server-to-server callers
+	// (Slack, IdPs) send no Origin and authenticate with signatures or tokens instead.
+	if (method !== 'GET' && method !== 'HEAD') {
 		const origin = event.request.headers.get('origin');
 		if (origin) {
 			const h = event.request.headers;

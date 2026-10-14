@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { listPeople } from '#lib/server/accounts.ts';
 import { db } from '#lib/server/db.ts';
+import { connectedIntegrations } from '#lib/server/integrations.ts';
 import { listGrants } from '#lib/server/grants.ts';
 import { ctx, isAdmin } from '#lib/server/http.ts';
 import { listRequests } from '#lib/server/requests.ts';
@@ -19,6 +20,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		people: (await listPeople(d, c.org.id)).map((p) => ({ id: p.id, name: p.name, email: p.email })),
 		grants: await listGrants(d, c.org.id, { resourceId: resource.id }),
 		requests: await listRequests(d, c.org.id, { resourceIds: [resource.id], limit: 10 }),
-		origin: locals.origin
+		origin: locals.origin,
+		integrations: (await connectedIntegrations(d, c.org.id)).filter((k) => k !== 'slack')
 	};
 };

@@ -20,6 +20,7 @@
 
 	let role = $state<Role>('member');
 	let title = $state('');
+	let githubLogin = $state('');
 	let managerIds = $state<string[]>([]);
 	let busy = $state(false);
 	let changing = $state<'onboarding' | 'transfer' | null>(null);
@@ -28,14 +29,15 @@
 	$effect(() => {
 		role = p.role;
 		title = p.title;
+		githubLogin = data.githubLogin;
 		managerIds = p.managerId ? [p.managerId] : [];
 	});
-	const dirty = $derived(role !== p.role || title !== p.title || (managerIds[0] ?? null) !== p.managerId);
+	const dirty = $derived(role !== p.role || title !== p.title || githubLogin !== data.githubLogin || (managerIds[0] ?? null) !== p.managerId);
 
 	async function save() {
 		busy = true;
 		try {
-			await api.patch(`/api/people/${p.id}`, { role, title, managerId: managerIds[0] ?? '' });
+			await api.patch(`/api/people/${p.id}`, { role, title, managerId: managerIds[0] ?? '', githubLogin });
 			toast('success', 'Saved');
 			await invalidateAll();
 		} catch (err) {
@@ -112,6 +114,10 @@
 				<div>
 					<label class="label" for="title">Title</label>
 					<input id="title" class="input" placeholder="e.g. Backend engineer" bind:value={title} />
+				</div>
+				<div>
+					<label class="label" for="gh">GitHub username</label>
+					<input id="gh" class="input font-mono text-xs" placeholder="octocat" bind:value={githubLogin} />
 				</div>
 				<div>
 					<span class="label">Manager</span>

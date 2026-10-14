@@ -15,7 +15,10 @@ export default defineConfig({
 			compilerOptions: {
 				runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
 			},
-			adapter: adapter({ out: 'build' })
+			adapter: adapter({ out: 'build' }),
+			// hooks.server.ts does the Origin check for every write instead (so Slack, which posts
+			// forms without an Origin header, can reach /api/slack/interactions).
+			csrf: { trustedOrigins: ['*'] }
 		})
 	]
 });

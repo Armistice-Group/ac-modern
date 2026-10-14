@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import { ShieldAlert, GripVertical, Plus, Trash2, LoaderCircle, Webhook, Hand, Copy, ArrowUp, ArrowDown } from '@lucide/svelte';
+	import { Plug, ShieldAlert, GripVertical, Plus, Trash2, LoaderCircle, Webhook, Hand, Copy, ArrowUp, ArrowDown } from '@lucide/svelte';
 	import PeoplePicker from './PeoplePicker.svelte';
 	import ResourceIcon from './ResourceIcon.svelte';
 	import Switch from './Switch.svelte';
@@ -11,7 +11,14 @@
 	import type { ApprovalPolicy, Resource } from '#lib/types.ts';
 
 	type P = { id: string; name: string; email: string };
-	let { resource = null, people, defaultApproval = 'approvers', origin }: { resource?: Resource | null; people: P[]; defaultApproval?: ApprovalPolicy; origin: string } = $props();
+	let {
+		resource = null,
+		people,
+		defaultApproval = 'approvers',
+		origin,
+		integrations = []
+	}: { resource?: Resource | null; people: P[]; defaultApproval?: ApprovalPolicy; origin: string; integrations?: string[] } = $props();
+	type Map = { type: string; team?: string; group?: string; role?: string };
 
 	const TEMPLATES: Record<string, { category: string; color: string; roles: { name: string; description: string; privileged?: boolean }[] }> = {
 		GitHub: { category: 'engineering', color: 'slate', roles: [{ name: 'Member', description: 'Read and write to team repositories' }, { name: 'Owner', description: 'Full admin of the organisation', privileged: true }] },
@@ -36,7 +43,10 @@
 		requestable: resource?.requestable ?? true,
 		approverIds: [...(resource?.approverIds ?? [])],
 		fulfillerIds: [...(resource?.fulfillerIds ?? [])],
-		roles: (resource?.roles.map((r) => ({ ...r })) ?? [{ id: undefined, name: 'Member', description: '', privileged: false }]) as { id?: string; name: string; description: string; privileged: boolean }[]
+		integration: resource?.integration ?? '',
+		roles: (resource?.roles.map((r) => ({ ...r, map: (resource.integrationMap[r.id] as Map | undefined) ?? { type: '' } })) ?? [
+			{ id: undefined, name: 'Member', description: '', privileged: false, map: { type: '' } as Map }
+		]) as { id?: string; name: string; description: string; privileged: boolean; map: Map }[]
 	});
 	let f = $state(initial());
 	let owner = $state<string[]>(f.ownerId ? [f.ownerId] : []);
@@ -48,7 +58,22 @@
 		f.name = name;
 		f.category = t.category;
 		f.color = t.color;
-		f.roles = t.roles.map((r) => ({ id: undefined, ...r, privileged: !!r.privileged }));
+		f.roles = t.roles.map((r) => ({ id: undefined, ...r, privileged: !!r.privileged, map: { type: '' } }));
+	}
+
+	let teams = $state<{ slug: string; name: string }[] | null>(null);
+	$effect(() => {
+		if (f.fulfillment === 'integration' && f.integration === 'github' && teams === null) {
+			teams = [];
+			api.get<{ slug: string; name: string }[]>('/api/integrations/github/teams').then((t) => (teams = t)).catch(() => (teams = []));
+		}
+	});
+	function useIntegration(kind: string) {
+		f.fulfillment = 'integration';
+		f.integration = kind as 'github' | 'google';
+		// Sensible starting points: privileged GitHub levels as org owner, Google levels as groups.
+		for (const role of f.roles)
+			if (!role.map.type?.startsWith(kind)) role.map = kind === 'github' ? { type: 'github_org', role: role.privileged ? 'admin' : 'member' } : { type: 'google_group', group: '', role: 'MEMBER' };
 	}
 
 	function move(i: number, d: number) {
@@ -61,8 +86,10 @@
 		e.preventDefault();
 		busy = true;
 		try {
+			const integrationMap = Object.fromEntries(f.roles.map((r, i) => [r.id ?? `#${i}`, r.map]).filter(([, m]) => (m as Map).type));
 			const body = {
 				...f,
+				integrationMap,
 				ownerId: owner[0] ?? null,
 				maxDays: f.maxDays === '' ? null : Number(f.maxDays),
 				defaultDays: f.defaultDays === '' ? null : Number(f.defaultDays),
@@ -135,7 +162,7 @@
 					<h2 class="text-[0.9375rem] font-semibold tracking-tight">Access levels</h2>
 					<p class="text-xs text-muted-foreground">What people can ask for, lowest first. Mark admin-level or sensitive ones as privileged: they always need a system owner or approver.</p>
 				</div>
-				<button type="button" class="btn btn-secondary btn-sm" onclick={() => f.roles.push({ id: undefined, name: '', description: '', privileged: false })}><Plus />Add level</button>
+				<button type="button" class="btn btn-secondary btn-sm" onclick={() => f.roles.push({ id: undefined, name: '', description: '', privileged: false, map: { type: '' } })}><Plus />Add level</button>
 			</div>
 			<div class="mt-4 space-y-2">
 				{#each f.roles as role, i (i)}
@@ -204,6 +231,52 @@
 					<span><span class="flex items-center gap-1.5 font-medium"><Webhook class="size-3.5" />Webhook</span><span class="block text-xs text-muted-foreground">POST to your script or automation (n8n, Zapier, a Lambda).</span></span>
 				</label>
 			</div>
+			{#if integrations.length}
+				<div class="mt-2 grid gap-2 sm:grid-cols-2">
+					{#each integrations as k (k)}
+						<label class="flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-[0.8125rem] {f.fulfillment === 'integration' && f.integration === k ? 'border-primary/60 bg-primary-soft' : 'border-border hover:bg-accent/50'}">
+							<input type="radio" class="mt-0.5 accent-[var(--primary)]" name="integration" checked={f.fulfillment === 'integration' && f.integration === k} onchange={() => useIntegration(k)} />
+							<span><span class="flex items-center gap-1.5 font-medium"><Plug class="size-3.5" />{k === 'github' ? 'GitHub' : 'Google Workspace'}</span><span class="block text-xs text-muted-foreground">{k === 'github' ? 'Adds and removes org members and team members.' : 'Adds and removes group members; suspends accounts.'}</span></span>
+						</label>
+					{/each}
+				</div>
+			{/if}
+			{#if f.fulfillment === 'integration'}
+				<div class="mt-4 space-y-2">
+					<p class="label">What each level means in {f.integration === 'github' ? 'GitHub' : 'Google Workspace'}</p>
+					{#each f.roles as role, i (i)}
+						<div class="flex flex-wrap items-center gap-2">
+							<span class="w-36 shrink-0 truncate text-[0.8125rem] font-medium">{role.name || `Level ${i + 1}`}</span>
+							{#if f.integration === 'github'}
+								<select class="input w-44" bind:value={() => (role.map.type === 'github_team' ? 'team' : role.map.role === 'admin' ? 'owner' : 'member'), (v) => (role.map = v === 'team' ? { type: 'github_team', team: role.map.team ?? '', role: 'member' } : { type: 'github_org', role: v === 'owner' ? 'admin' : 'member' })}>
+									<option value="member">Org member</option>
+									<option value="owner">Org owner</option>
+									<option value="team">Team…</option>
+								</select>
+								{#if role.map.type === 'github_team'}
+									{#if teams?.length}
+										<select class="input w-48" bind:value={role.map.team}><option value="">Choose a team</option>{#each teams as t (t.slug)}<option value={t.slug}>{t.name}</option>{/each}</select>
+									{:else}
+										<input class="input w-48 font-mono text-xs" placeholder="team-slug" bind:value={role.map.team} />
+									{/if}
+									<select class="input w-36" bind:value={role.map.role}><option value="member">as member</option><option value="maintainer">as maintainer</option></select>
+								{/if}
+							{:else}
+								<select class="input w-40" bind:value={() => role.map.type, (v) => (role.map = v === 'google_account' ? { type: 'google_account' } : { type: 'google_group', group: role.map.group ?? '', role: 'MEMBER' })}>
+									<option value="google_group">Group</option>
+									<option value="google_account">The account itself</option>
+								</select>
+								{#if role.map.type === 'google_group'}
+									<input class="input w-56 font-mono text-xs" placeholder="engineering@acme.com" bind:value={role.map.group} />
+									<select class="input w-32" bind:value={role.map.role}><option value="MEMBER">member</option><option value="MANAGER">manager</option><option value="OWNER">owner</option></select>
+								{:else}
+									<span class="text-xs text-muted-foreground">Unsuspend on grant, suspend on removal</span>
+								{/if}
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
 			{#if f.fulfillment === 'webhook'}
 				<div class="mt-4 space-y-3">
 					<div>

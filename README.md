@@ -12,13 +12,13 @@ Small teams usually handle access in Slack DMs and a spreadsheet, or pay for a h
 
 - **Catalog.** Every app and system people can request, with access levels (e.g. GitHub *Member / Maintainer / Owner*).
 - **Approvals.** Per resource: none, the requester's manager, resource approvers, or manager *then* approver. Nobody approves their own access, unless nobody else could (a one-person team); that case is logged as self-approved.
-- **Setup.** By hand (the fulfiller gets a task and marks it done) or by **webhook**: a signed POST to your script, n8n, Zapier or Lambda. A 2xx answer completes the request. A failure falls back to a person.
+- **Setup.** By hand (the fulfiller gets a task and marks it done), with the built-in **GitHub** (org and team membership) and **Google Workspace** (groups, account suspension) integrations, or by **webhook**: a signed POST to your script, n8n, Zapier or Lambda. If anything automatic fails, the task falls back to a person with the error.
 - **Time-boxed access.** Max and default durations per resource. Expired grants open a removal automatically, and people get a reminder before expiry with a one-click *Extend*.
 - **Access reviews.** Quarterly-style campaigns: each resource owner keeps or revokes every grant, and revoked ones become removals. Export the decisions as CSV evidence (SOC 2, ISO 27001).
 - **Offboarding.** One click deactivates the person, cancels their open requests, and opens a removal for everything they hold.
 - **Record existing access.** Import what people already have, so reviews and offboarding cover it from day one.
 - **Audit log** of every request, decision, grant and setting change, exportable as CSV.
-- **Notifications** by email (SMTP) and to a Slack channel (incoming webhook).
+- **Slack approvals.** Approvers get a direct message with Approve and Deny buttons (Deny asks why), and requesters hear back in Slack. Self-hosted orgs create the app from a manifest; the cloud uses "Add to Slack". Email (SMTP) and a channel webhook work too.
 - **Directory sync** from your IdP: SCIM 2.0 push (Okta, Entra ID, JumpCloud, OneLogin, Rippling) or scheduled pulls from Google Workspace, the Okta API and Microsoft Graph. People are added with title and manager, and deactivation in the IdP offboards them (opening removals for all their access). IdP groups map to ac·modern admins, or to access levels, so access that already lives in the IdP is detected and tracked. Access granted there without a request is flagged in the audit evidence.
 - **API for GRC tools.** Read-only, org-scoped tokens and a REST API (`/api/v1`, OpenAPI at `/api/v1/openapi.json`) for Vanta, Drata, Secureframe or your own scripts: users, resources, access, requests with approvals (the audit population), reviews and the audit log.
 - **Single sign-on (OIDC)** per organisation: Okta, Entra ID, Google, JumpCloud, Authentik, Keycloak. Email domains are claimed per org (DNS-verified in the cloud), accounts are created on first sign-in, and SSO can be required, with owners keeping a password as a break-glass.

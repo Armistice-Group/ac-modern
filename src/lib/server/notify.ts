@@ -1,5 +1,7 @@
 import { orgSettings } from './accounts.ts';
 import { config } from './config.ts';
+import { getSlack, slackApi, slackUserId } from './slack.ts';
+import type { Db } from './db.ts';
 import { db as getDb } from './db.ts';
 
 /**
@@ -17,6 +19,8 @@ export interface Notice {
 	path: string;
 	/** Also post to the organisation's Slack channel. */
 	slack?: boolean;
+	/** An approval request: Slack DMs get Approve/Deny buttons for this request id. */
+	approve?: { requestId: string; number: number; summary: string; justification: string; privileged: boolean };
 }
 
 let transport: { sendMail: (m: Record<string, unknown>) => Promise<unknown> } | null | undefined;
@@ -44,6 +48,7 @@ export async function deliver(notices: Notice[], origin = config.publicUrl) {
 					[n.orgId, ...ids]
 				)
 			: [];
+		await slackDms(db, n, recipients.map((r) => r.email), link);
 		for (const r of recipients) {
 			const text = `${n.text}\n\n${link}\n\n— ac·modern`;
 			outbox.push({ to: r.email, subject: n.subject, text });
@@ -75,3 +80,38 @@ export async function postSlack(url: string, text: string) {
 	});
 	if (!res.ok) throw new Error(`Slack answered ${res.status} ${await res.text().catch(() => '')}`.trim());
 }
+
+/** Direct messages through the org's Slack app, when one is connected. Never throws. */
+async function slackDms(db: Db, n: Notice, emails: string[], link: string) {
+	if (!emails.length) return;
+	let cfg;
+	try {
+		cfg = await getSlack(db, n.orgId);
+	} catch {
+		return;
+	}
+	if (!cfg?.botToken) return;
+	for (const email of emails) {
+		try {
+			const user = await slackUserId(cfg, email);
+			if (!user) continue;
+			const blocks: unknown[] = [{ type: 'section', text: { type: 'mrkdwn', text: `*${escape(n.subject)}*\n${escape(n.text)}` } }];
+			if (n.approve) {
+				blocks.push({
+					type: 'actions',
+					block_id: `acm:${n.approve.requestId}`,
+					elements: [
+						{ type: 'button', style: 'primary', text: { type: 'plain_text', text: 'Approve' }, action_id: 'approve', value: n.approve.requestId },
+						{ type: 'button', style: 'danger', text: { type: 'plain_text', text: 'Deny…' }, action_id: 'deny', value: n.approve.requestId },
+						{ type: 'button', text: { type: 'plain_text', text: 'Open' }, action_id: 'open', url: link }
+					]
+				});
+			} else blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: `<${link}|Open in ac·modern>` }] });
+			await slackApi(cfg.botToken, 'chat.postMessage', { channel: user, text: n.subject, blocks, unfurl_links: false });
+		} catch (err) {
+			console.warn(`[ac-modern] Slack DM to ${email} failed: ${(err as Error).message}`);
+		}
+	}
+}
+
+const escape = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');

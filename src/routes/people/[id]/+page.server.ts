@@ -19,7 +19,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		"SELECT user_id, resource_id, role_id FROM grants WHERE org_id = ? AND status = 'active' AND user_id <> ?",
 		[c.org.id, person.id]
 	);
+	const gh = await d.get<{ github_login: string }>('SELECT github_login FROM users WHERE id = ?', [person.id]);
 	return {
+		githubLogin: gh?.github_login ?? '',
 		admin,
 		resources: (await listResources(d, c.org.id)).map((r) => ({ id: r.id, name: r.name, color: r.color, roles: r.roles, maxDays: r.maxDays, defaultDays: r.defaultDays })),
 		othersAccess: others.map((g) => ({ userId: g.user_id, resourceId: g.resource_id, roleId: g.role_id })),

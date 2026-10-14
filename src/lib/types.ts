@@ -1,6 +1,13 @@
 export type Role = 'owner' | 'admin' | 'member';
 export type ApprovalPolicy = 'none' | 'manager' | 'approvers' | 'manager_then_approvers';
-export type Fulfillment = 'manual' | 'webhook';
+export type Fulfillment = 'manual' | 'webhook' | 'integration';
+export type IntegrationKind = 'github' | 'google';
+/** What an access level means in the connected system. */
+export type LevelMapping =
+	| { type: 'github_org'; role: 'member' | 'admin' }
+	| { type: 'github_team'; team: string; role: 'member' | 'maintainer' }
+	| { type: 'google_group'; group: string; role: 'MEMBER' | 'MANAGER' | 'OWNER' }
+	| { type: 'google_account' };
 export type RequestStatus = 'pending_approval' | 'pending_fulfillment' | 'completed' | 'denied' | 'cancelled';
 export type RequestKind = 'grant' | 'revoke';
 /** Why a revoke request exists. Grant requests are always 'request'. */
@@ -86,6 +93,9 @@ export interface Resource {
 	fulfillment: Fulfillment;
 	webhookUrl: string;
 	hasWebhookSecret: boolean;
+	integration: IntegrationKind | '';
+	/** Role id → what it means in the integration. */
+	integrationMap: Record<string, LevelMapping>;
 	maxDays: number | null;
 	defaultDays: number | null;
 	requestable: boolean;

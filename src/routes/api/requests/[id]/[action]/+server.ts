@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { db } from '#lib/server/db.ts';
 import { deliver } from '#lib/server/notify.ts';
 import { actor, body, ctx, forbidden, handler, notFound, str } from '#lib/server/http.ts';
-import { abilities, addComment, cancel, complete, decide, effects, flush, getRequest, runWebhook } from '#lib/server/requests.ts';
+import { abilities, addComment, cancel, complete, decide, effects, flush, getRequest, runAutomation } from '#lib/server/requests.ts';
 import { getResource } from '#lib/server/resources.ts';
 
 export const POST = handler(async (event) => {
@@ -33,7 +33,7 @@ export const POST = handler(async (event) => {
 			const req = await getRequest(d, c.org.id, { id });
 			const can = await abilities(d, a, req, await getResource(d, c.org.id, req.resource.id));
 			if (!can.fulfill) throw forbidden();
-			await runWebhook(d, c.org.id, id, event.locals.origin);
+			await runAutomation(d, c.org.id, id, event.locals.origin);
 			break;
 		}
 		default:

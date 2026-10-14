@@ -57,7 +57,7 @@
 	{/if}
 
 	{#if tab === 'settings' && data.admin}
-		{#key r.id}<ResourceForm resource={r} people={data.people} origin={data.origin} />{/key}
+		{#key r.id}<ResourceForm resource={r} people={data.people} origin={data.origin} integrations={data.integrations} />{/key}
 	{:else}
 		<div class="grid gap-6 xl:grid-cols-2">
 			<section class="card overflow-hidden">

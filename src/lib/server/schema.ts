@@ -328,5 +328,27 @@ CREATE TABLE api_tokens (
 	revoked_at TEXT
 );
 CREATE INDEX api_tokens_org ON api_tokens(org_id)
+`,
+	// Built-in provisioning (GitHub, Google Workspace) and Slack app.
+	`
+CREATE TABLE integrations (
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	kind TEXT NOT NULL,
+	config TEXT NOT NULL,
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL,
+	PRIMARY KEY (org_id, kind)
+);
+
+ALTER TABLE resources ADD COLUMN integration TEXT NOT NULL DEFAULT '';
+ALTER TABLE resources ADD COLUMN integration_map TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE users ADD COLUMN github_login TEXT NOT NULL DEFAULT ''
+`,
+	// Which org a Slack workspace belongs to (for interactive messages).
+	`
+CREATE TABLE slack_teams (
+	team_id TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE
+)
 `
 ];

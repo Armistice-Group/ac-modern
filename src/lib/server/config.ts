@@ -43,6 +43,10 @@ export const config = {
 		: null,
 	/** How often Google/Okta/Microsoft directories are pulled. */
 	directorySyncMinutes: Number(env.ACM_DIRECTORY_SYNC_MINUTES || 30),
+	/** Cloud: one Slack app for every org ("Add to Slack"). Self-hosted orgs create their own from a manifest. */
+	slackApp: env.ACM_SLACK_CLIENT_ID
+		? { clientId: env.ACM_SLACK_CLIENT_ID, clientSecret: env.ACM_SLACK_CLIENT_SECRET || '', signingSecret: env.ACM_SLACK_SIGNING_SECRET || '' }
+		: null,
 	/** How often expiry and reminder jobs run. */
 	jobIntervalMs: Number(env.ACM_JOB_INTERVAL_SECONDS || 60) * 1000
 };

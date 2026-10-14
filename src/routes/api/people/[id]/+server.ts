@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { countOwners, getPerson, updateMember } from '#lib/server/accounts.ts';
+import { countOwners, getPerson, updateMember, updateUser } from '#lib/server/accounts.ts';
 import { db } from '#lib/server/db.ts';
 import { record } from '#lib/server/events.ts';
 import { adminCtx, badRequest, body, forbidden, handler, oneOf, str } from '#lib/server/http.ts';
@@ -26,6 +26,7 @@ export const PATCH = handler(async (event) => {
 		patch.managerId = m;
 	}
 	await updateMember(d, c.org.id, id, patch);
+	if (b.githubLogin !== undefined) await updateUser(d, id, { githubLogin: str(b, 'githubLogin', { max: 40 }) });
 	const changes: string[] = [];
 	if (patch.role && patch.role !== person.role) changes.push(`role ${person.role} → ${patch.role}`);
 	if (patch.title !== undefined && patch.title !== person.title) changes.push(`title “${patch.title}”`);

@@ -86,3 +86,45 @@ export async function pullGoogle(cfg: GoogleConfig, f: Fetch = fetch): Promise<{
 	}
 	return { users, groups };
 }
+
+// ── Provisioning ─────────────────────────────────────────────────────────────
+
+export type GoogleLevel = { type: 'google_group'; group: string; role: 'MEMBER' | 'MANAGER' | 'OWNER' } | { type: 'google_account' };
+
+async function call(f: Fetch, token: string, method: string, url: string, body?: unknown) {
+	return f(url, { method, headers: { authorization: `Bearer ${token}`, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+}
+
+export async function testGoogle(cfg: GoogleConfig, f: Fetch = fetch) {
+	const token = await googleToken(cfg, PROVISIONING_SCOPES, f);
+	const res = await call(f, token, 'GET', `${API}/users/${encodeURIComponent(cfg.adminEmail)}`);
+	const me = await jsonOrThrow<{ primaryEmail: string; isAdmin?: boolean }>(res, 'Google admin');
+	return { as: me.primaryEmail };
+}
+
+export async function googleGrant(cfg: GoogleConfig, level: GoogleLevel, email: string, f: Fetch = fetch): Promise<string> {
+	const token = await googleToken(cfg, PROVISIONING_SCOPES, f);
+	if (level.type === 'google_account') {
+		const res = await call(f, token, 'PUT', `${API}/users/${encodeURIComponent(email)}`, { suspended: false });
+		if (res.status === 404) throw new ProviderError(`${email} doesn’t have a Google Workspace account yet; create it in the Admin console, then mark this done`);
+		await jsonOrThrow(res, 'Google account');
+		return `Google Workspace: ${email} is active`;
+	}
+	const res = await call(f, token, 'POST', `${API}/groups/${encodeURIComponent(level.group)}/members`, { email, role: level.role });
+	if (res.status === 409) {
+		await jsonOrThrow(await call(f, token, 'PATCH', `${API}/groups/${encodeURIComponent(level.group)}/members/${encodeURIComponent(email)}`, { role: level.role }), 'Google group');
+	} else await jsonOrThrow(res, 'Google group');
+	return `Google Workspace: ${email} added to ${level.group} as ${level.role.toLowerCase()}`;
+}
+
+export async function googleRevoke(cfg: GoogleConfig, level: GoogleLevel, email: string, f: Fetch = fetch): Promise<string> {
+	const token = await googleToken(cfg, PROVISIONING_SCOPES, f);
+	if (level.type === 'google_account') {
+		const res = await call(f, token, 'PUT', `${API}/users/${encodeURIComponent(email)}`, { suspended: true });
+		if (res.status !== 404) await jsonOrThrow(res, 'Google account');
+		return `Google Workspace: ${email} suspended`;
+	}
+	const res = await call(f, token, 'DELETE', `${API}/groups/${encodeURIComponent(level.group)}/members/${encodeURIComponent(email)}`);
+	if (res.status !== 404 && !res.ok) await jsonOrThrow(res, 'Google group');
+	return `Google Workspace: ${email} removed from ${level.group}`;
+}

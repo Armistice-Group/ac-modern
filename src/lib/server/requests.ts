@@ -381,12 +381,13 @@ async function announceApproval(db: Db, orgId: string, req: AccessRequest, resou
 		subject: `Approve access: ${who(req.user)} → ${what(req)}`,
 		text: `${who(req.user)} needs ${what(req)}${req.durationDays ? ` for ${req.durationDays} days` : ''}.\n“${req.justification}”${steps > 1 ? `\nStep ${req.step} of ${steps}${via === 'manager' ? ' (manager)' : ''}.` : ''}`,
 		path: `/requests/${req.number}`,
-		slack: true
+		slack: true,
+		approve: { requestId: req.id, number: req.number, summary: `${who(req.user)} → ${what(req)}`, justification: req.justification, privileged: req.privileged }
 	});
 }
 
 async function startFulfillment(db: Db, orgId: string, req: AccessRequest, resource: Resource, fx: Effects, why: string) {
-	if (resource.fulfillment === 'webhook') {
+	if (resource.fulfillment !== 'manual') {
 		fx.webhooks.push(req.id);
 		return;
 	}
@@ -426,7 +427,7 @@ export const CAPACITY_LABEL: Record<ApprovalCapacity, string> = {
 	'': 'Approver'
 };
 
-export async function decide(db: Db, actor: Actor & { userId: string }, requestId: string, decision: 'approved' | 'denied', comment: string, fx: Effects) {
+export async function decide(db: Db, actor: Actor & { userId: string }, requestId: string, decision: 'approved' | 'denied', comment: string, fx: Effects, via: 'web' | 'slack' = 'web') {
 	return db.tx(async (tx) => {
 		const req = await getRequest(tx, actor.orgId, { id: requestId });
 		if (req.status !== 'pending_approval') throw conflict('This request isn’t waiting for approval any more');
@@ -463,8 +464,8 @@ export async function decide(db: Db, actor: Actor & { userId: string }, requestI
 			action: decision === 'approved' ? 'request.approved' : 'request.denied',
 			requestId: req.id,
 			subject: resource.name,
-			summary: `${decision === 'approved' ? 'Approved' : 'Denied'} ${what(req)} for ${who(req.user)} as ${CAPACITY_LABEL[capacity].toLowerCase()}${capacity === 'self' ? ' (no other approver)' : ''}`,
-			data: { step: req.step, comment: comment.trim(), capacity }
+			summary: `${decision === 'approved' ? 'Approved' : 'Denied'} ${what(req)} for ${who(req.user)} as ${CAPACITY_LABEL[capacity].toLowerCase()}${capacity === 'self' ? ' (no other approver)' : ''}${via === 'slack' ? ' via Slack' : ''}`,
+			data: { step: req.step, comment: comment.trim(), capacity, via }
 		});
 
 		const notifyIds = [...new Set([req.user.id, req.requester?.id].filter((x): x is string => !!x && x !== actor.userId))];
@@ -657,31 +658,29 @@ export async function startRevoke(db: Db, actor: Actor, grantId: string, reason:
 	return req;
 }
 
-// ── Webhook fulfillment ──────────────────────────────────────────────────────
+// ── Automatic fulfillment (webhook or built-in integration) ─────────────────
 
-/**
- * Calls the resource's provisioning webhook. A 2xx answer completes the request; anything
- * else leaves it open, logs why, and asks the fulfillers to do it by hand.
- */
-export async function runWebhook(db: Db, orgId: string, requestId: string, origin: string): Promise<boolean> {
-	const req = await getRequest(db, orgId, { id: requestId });
-	if (req.status !== 'pending_fulfillment') return false;
-	const resource = await getResource(db, orgId, req.resource.id);
-	if (resource.fulfillment !== 'webhook' || !resource.webhookUrl) return false;
-	const body = JSON.stringify({
-		event: req.kind === 'grant' ? 'access.grant' : 'access.revoke',
-		request: { id: req.id, number: req.number, reason: req.reason, url: `${origin}/requests/${req.number}` },
-		user: req.user,
-		resource: { id: resource.id, name: resource.name },
-		role: req.role,
-		durationDays: req.durationDays,
-		grantId: req.grantId
-	});
-	const ts = Math.floor(Date.now() / 1000).toString();
-	const secret = await webhookSecret(db, orgId, resource.id);
-	let error = '';
-	try {
-		const res = await fetch(resource.webhookUrl, {
+let httpFetch: typeof fetch = (...a) => fetch(...a);
+/** Tests swap in a fake network. */
+export function setAutomationFetch(f: typeof fetch) {
+	httpFetch = f;
+}
+
+/** Does the work for a webhook or integration resource; returns a note for the request, or throws. */
+async function automate(db: Db, orgId: string, req: AccessRequest, resource: Resource, origin: string): Promise<string> {
+	if (resource.fulfillment === 'webhook') {
+		const body = JSON.stringify({
+			event: req.kind === 'grant' ? 'access.grant' : 'access.revoke',
+			request: { id: req.id, number: req.number, reason: req.reason, url: `${origin}/requests/${req.number}` },
+			user: req.user,
+			resource: { id: resource.id, name: resource.name },
+			role: req.role,
+			durationDays: req.durationDays,
+			grantId: req.grantId
+		});
+		const ts = Math.floor(Date.now() / 1000).toString();
+		const secret = await webhookSecret(db, orgId, resource.id);
+		const res = await httpFetch(resource.webhookUrl, {
 			method: 'POST',
 			headers: {
 				'content-type': 'application/json',
@@ -693,13 +692,49 @@ export async function runWebhook(db: Db, orgId: string, requestId: string, origi
 			body,
 			signal: AbortSignal.timeout(15_000)
 		});
-		if (!res.ok) error = `answered ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`.trim();
+		if (!res.ok) throw new Error(`the webhook answered ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`.trim());
+		return `Webhook ${resource.webhookUrl} confirmed`;
+	}
+	const level = resource.integrationMap[req.role.id];
+	if (!level) throw new Error(`“${req.role.name}” isn’t mapped to anything in ${resource.integration}`);
+	const { getIntegration } = await import('./integrations.ts');
+	if (resource.integration === 'github') {
+		const cfg = await getIntegration<{ org: string; token: string }>(db, orgId, 'github');
+		if (!cfg) throw new Error('GitHub isn’t connected (Settings → Integrations)');
+		const gh = await import('./idp/github.ts');
+		const login = (await db.get<{ github_login: string }>('SELECT github_login FROM users WHERE id = ?', [req.user.id]))?.github_login ?? '';
+		const who = { email: req.user.email, login };
+		return req.kind === 'grant' ? gh.githubGrant(cfg, level as never, who, httpFetch) : gh.githubRevoke(cfg, level as never, who, httpFetch);
+	}
+	if (resource.integration === 'google') {
+		const cfg = await getIntegration<{ serviceAccountJson: string; adminEmail: string }>(db, orgId, 'google');
+		if (!cfg) throw new Error('Google Workspace isn’t connected (Settings → Integrations)');
+		const g = await import('./idp/google.ts');
+		return req.kind === 'grant' ? g.googleGrant(cfg, level as never, req.user.email, httpFetch) : g.googleRevoke(cfg, level as never, req.user.email, httpFetch);
+	}
+	throw new Error('No automatic setup is configured');
+}
+
+/**
+ * Runs a resource's automatic setup or removal. Success completes the request with what
+ * was done; failure leaves it open, logs why, and asks the fulfillers to do it by hand.
+ */
+export async function runAutomation(db: Db, orgId: string, requestId: string, origin: string): Promise<boolean> {
+	const req = await getRequest(db, orgId, { id: requestId });
+	if (req.status !== 'pending_fulfillment') return false;
+	const resource = await getResource(db, orgId, req.resource.id);
+	if (resource.fulfillment === 'manual') return false;
+	let note = '';
+	let error = '';
+	try {
+		note = await automate(db, orgId, req, resource, origin);
 	} catch (err) {
 		error = (err as Error).message;
 	}
 	const fx = effects();
+	const how = resource.fulfillment === 'webhook' ? 'provisioning webhook' : resource.integration === 'github' ? 'GitHub integration' : 'Google Workspace integration';
 	if (!error) {
-		await complete(db, { orgId, userId: null, admin: true }, req.id, `Webhook ${resource.webhookUrl} confirmed`, fx);
+		await complete(db, { orgId, userId: null, admin: true }, req.id, note, fx);
 	} else {
 		await record(db, {
 			orgId,
@@ -707,14 +742,14 @@ export async function runWebhook(db: Db, orgId: string, requestId: string, origi
 			action: 'request.webhook_failed',
 			requestId: req.id,
 			subject: resource.name,
-			summary: `Automatic setup failed: ${error}`,
-			data: { url: resource.webhookUrl }
+			summary: `Automatic ${req.kind === 'grant' ? 'setup' : 'removal'} failed: ${error}`,
+			data: { via: how }
 		});
 		fx.notices.push({
 			orgId,
 			to: await fulfillersFor(db, orgId, resource),
 			subject: `Needs a hand: ${what(req)} for ${who(req.user)}`,
-			text: `The provisioning webhook for ${resource.name} failed (${error}). Set it up by hand, or retry, then mark request #${req.number} done.`,
+			text: `The ${how} for ${resource.name} couldn’t ${req.kind === 'grant' ? 'set this up' : 'remove this'} (${error}). Do it by hand, or retry, then mark request #${req.number} done.`,
 			path: `/requests/${req.number}`
 		});
 	}
@@ -723,16 +758,19 @@ export async function runWebhook(db: Db, orgId: string, requestId: string, origi
 	return !error;
 }
 
+/** @deprecated Use runAutomation. */
+export const runWebhook = runAutomation;
+
 /** Sends notices and runs webhooks collected during a committed change. */
 export async function flush(db: Db, orgId: string, fx: Effects, origin: string) {
 	const { deliver } = await import('./notify.ts');
 	await deliver(fx.notices, origin);
 	// One webhook (a single request) runs inline so the response shows the result; a batch
 	// (offboarding, expiry) runs in the background instead of holding the request open.
-	if (fx.webhooks.length === 1) await runWebhook(db, orgId, fx.webhooks[0], origin);
+	if (fx.webhooks.length === 1) await runAutomation(db, orgId, fx.webhooks[0], origin);
 	else if (fx.webhooks.length > 1)
 		void (async () => {
-			for (const id of fx.webhooks) await runWebhook(db, orgId, id, origin).catch((err) => console.error('[ac-modern] webhook', err));
+			for (const id of fx.webhooks) await runAutomation(db, orgId, id, origin).catch((err) => console.error('[ac-modern] automation', err));
 		})();
 }
 

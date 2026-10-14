@@ -1,12 +1,12 @@
 import { decrypt, encrypt, newId } from './crypto.ts';
 import type { Db } from './db.ts';
 import { badRequest, notFound } from './http.ts';
-import type { ApprovalPolicy, Fulfillment, Resource, ResourceRole } from '#lib/types.ts';
+import type { ApprovalPolicy, Fulfillment, IntegrationKind, LevelMapping, Resource, ResourceRole } from '#lib/types.ts';
 
 const now = () => new Date().toISOString();
 
 export const APPROVAL_POLICIES: ApprovalPolicy[] = ['none', 'manager', 'approvers', 'manager_then_approvers'];
-export const FULFILLMENTS: Fulfillment[] = ['manual', 'webhook'];
+export const FULFILLMENTS: Fulfillment[] = ['manual', 'webhook', 'integration'];
 export const COLORS = ['violet', 'blue', 'cyan', 'green', 'amber', 'orange', 'red', 'pink', 'slate'];
 
 interface Row {
@@ -21,6 +21,8 @@ interface Row {
 	fulfillment: Fulfillment;
 	webhook_url: string;
 	webhook_secret: string;
+	integration: IntegrationKind | '';
+	integration_map: string;
 	max_days: number | null;
 	default_days: number | null;
 	requestable: number;
@@ -46,6 +48,8 @@ async function hydrate(db: Db, orgId: string, rows: Row[]): Promise<Resource[]> 
 		fulfillment: r.fulfillment,
 		webhookUrl: r.webhook_url,
 		hasWebhookSecret: !!r.webhook_secret,
+		integration: r.integration,
+		integrationMap: JSON.parse(r.integration_map || '{}'),
 		maxDays: r.max_days,
 		defaultDays: r.default_days,
 		requestable: !!r.requestable,
@@ -85,6 +89,9 @@ export interface ResourceInput {
 	webhookUrl: string;
 	/** undefined keeps the stored secret; '' clears it. */
 	webhookSecret?: string;
+	integration?: IntegrationKind | '';
+	/** Keyed by role id, or by the role's position ("#0") for roles being created. */
+	integrationMap?: Record<string, LevelMapping>;
 	maxDays: number | null;
 	defaultDays: number | null;
 	requestable: boolean;
@@ -106,6 +113,16 @@ export function validateResource(input: ResourceInput) {
 			if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error();
 		} catch {
 			throw badRequest('Enter the webhook URL that provisions access (https://…)');
+		}
+	}
+	if (input.fulfillment === 'integration') {
+		if (input.integration !== 'github' && input.integration !== 'google') throw badRequest('Choose GitHub or Google Workspace');
+		const map = input.integrationMap ?? {};
+		for (const [i, r] of input.roles.entries()) {
+			const m = map[r.id ?? ''] ?? map[`#${i}`];
+			if (!m) throw badRequest(`Say what “${r.name}” means in ${input.integration === 'github' ? 'GitHub' : 'Google Workspace'}`);
+			if (input.integration === 'github' && !(m.type === 'github_org' || (m.type === 'github_team' && m.team))) throw badRequest(`Pick a GitHub team or org role for “${r.name}”`);
+			if (input.integration === 'google' && !(m.type === 'google_account' || (m.type === 'google_group' && /@/.test(m.group)))) throw badRequest(`Enter the Google group address for “${r.name}”`);
 		}
 	}
 	if (input.maxDays !== null && input.defaultDays !== null && input.defaultDays > input.maxDays) {
@@ -156,14 +173,24 @@ export async function saveResource(db: Db, orgId: string, id: string | null, inp
 
 		const existing = await tx.all<{ id: string }>('SELECT id FROM resource_roles WHERE resource_id = ?', [id]);
 		const keep = new Set<string>();
+		const map: Record<string, LevelMapping> = {};
 		for (const [i, role] of input.roles.entries()) {
+			const mapped = input.integrationMap?.[role.id ?? ''] ?? input.integrationMap?.[`#${i}`];
 			if (role.id && existing.some((e) => e.id === role.id)) {
+				if (mapped) map[role.id] = mapped;
 				keep.add(role.id);
 				await tx.run('UPDATE resource_roles SET name = ?, description = ?, privileged = ?, position = ?, archived = 0 WHERE id = ?', [role.name, role.description, !!role.privileged, i, role.id]);
 			} else {
-				await tx.run('INSERT INTO resource_roles (id, org_id, resource_id, name, description, privileged, position) VALUES (?, ?, ?, ?, ?, ?, ?)', [newId(), orgId, id, role.name, role.description, !!role.privileged, i]);
+				const roleId = newId();
+				if (mapped) map[roleId] = mapped;
+				await tx.run('INSERT INTO resource_roles (id, org_id, resource_id, name, description, privileged, position) VALUES (?, ?, ?, ?, ?, ?, ?)', [roleId, orgId, id, role.name, role.description, !!role.privileged, i]);
 			}
 		}
+		await tx.run('UPDATE resources SET integration = ?, integration_map = ? WHERE id = ?', [
+			input.fulfillment === 'integration' ? (input.integration ?? '') : '',
+			input.fulfillment === 'integration' ? JSON.stringify(map) : '{}',
+			id
+		]);
 		// Roles stay in the table (grants and history point at them); removed ones are archived.
 		for (const e of existing) if (!keep.has(e.id)) await tx.run('UPDATE resource_roles SET archived = 1 WHERE id = ?', [e.id]);
 		return id;
@@ -232,6 +259,8 @@ export function parseResourceInput(b: Record<string, unknown>): ResourceInput {
 		fulfillment,
 		webhookUrl: fulfillment === 'webhook' ? text('webhookUrl', 1000) : '',
 		webhookSecret: typeof b.webhookSecret === 'string' ? b.webhookSecret : undefined,
+		integration: b.integration === 'github' || b.integration === 'google' ? b.integration : '',
+		integrationMap: parseMap(b.integrationMap),
 		maxDays: num('maxDays'),
 		defaultDays: num('defaultDays'),
 		requestable: b.requestable !== false,
@@ -244,4 +273,18 @@ export function parseResourceInput(b: Record<string, unknown>): ResourceInput {
 			privileged: r?.privileged === true
 		}))
 	};
+}
+
+function parseMap(v: unknown): Record<string, LevelMapping> {
+	if (!v || typeof v !== 'object') return {};
+	const out: Record<string, LevelMapping> = {};
+	for (const [k, raw] of Object.entries(v as Record<string, Record<string, unknown>>)) {
+		const t = raw?.type;
+		const str = (x: unknown) => (typeof x === 'string' ? x.trim().slice(0, 200) : '');
+		if (t === 'github_org') out[k] = { type: t, role: raw.role === 'admin' ? 'admin' : 'member' };
+		else if (t === 'github_team') out[k] = { type: t, team: str(raw.team), role: raw.role === 'maintainer' ? 'maintainer' : 'member' };
+		else if (t === 'google_group') out[k] = { type: t, group: str(raw.group).toLowerCase(), role: raw.role === 'OWNER' ? 'OWNER' : raw.role === 'MANAGER' ? 'MANAGER' : 'MEMBER' };
+		else if (t === 'google_account') out[k] = { type: t };
+	}
+	return out;
 }

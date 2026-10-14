@@ -54,13 +54,15 @@ export async function requestTimeline(db: Db, orgId: string, requestId: string):
 	return (await db.all<Row>(`${SELECT} WHERE e.org_id = ? AND e.request_id = ? ORDER BY e.at, e.id`, [orgId, requestId])).map(toEvent);
 }
 
-export async function listEvents(db: Db, orgId: string, opts: { q?: string; before?: string; limit?: number; actorId?: string } = {}): Promise<Event[]> {
+export async function listEvents(db: Db, orgId: string, opts: { q?: string; before?: string; from?: string; to?: string; limit?: number; actorId?: string } = {}): Promise<Event[]> {
 	const where = ['e.org_id = ?'];
 	const params: (string | number)[] = [orgId];
 	if (opts.before) {
 		where.push('e.at < ?');
 		params.push(opts.before);
 	}
+	if (opts.from) where.push('e.at >= ?'), params.push(opts.from);
+	if (opts.to) where.push('e.at < ?'), params.push(opts.to);
 	if (opts.actorId) {
 		where.push('e.actor_id = ?');
 		params.push(opts.actorId);

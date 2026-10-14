@@ -1,0 +1,90 @@
+/** OpenAPI 3.1 description of /api/v1, served at /api/v1/openapi.json. */
+export function openapi(origin: string) {
+	const list = (item: string) => ({
+		type: 'object',
+		properties: { data: { type: 'array', items: { $ref: `#/components/schemas/${item}` } }, next_cursor: { type: ['string', 'null'], description: 'Pass as ?cursor= for the next page' } }
+	});
+	const page = [
+		{ name: 'limit', in: 'query', schema: { type: 'integer', default: 100, maximum: 1000 } },
+		{ name: 'cursor', in: 'query', schema: { type: 'string' } }
+	];
+	const period = [
+		{ name: 'from', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Inclusive (YYYY-MM-DD or ISO-8601)' },
+		{ name: 'to', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Inclusive day, or exclusive ISO-8601 instant' }
+	];
+	const get = (summary: string, schema: object, parameters: object[] = []) => ({ get: { summary, parameters, responses: { '200': { description: 'OK', content: { 'application/json': { schema } } }, '401': { description: 'Missing or invalid token' } } } });
+	const person = { type: ['object', 'null'], properties: { id: { type: 'string' }, email: { type: 'string' }, name: { type: 'string' } } };
+	return {
+		openapi: '3.1.0',
+		info: {
+			title: 'ac·modern API',
+			version: '1',
+			description:
+				'Read-only access to people, systems, access, access requests with their approvals, reviews and the audit log, for GRC tools and scripts. Authenticate with `Authorization: Bearer acm_…` (Settings → API). 600 requests a minute per token.'
+		},
+		servers: [{ url: `${origin}/api/v1` }],
+		security: [{ bearer: [] }],
+		paths: {
+			'/organization': get('The organisation and its access-control settings', { type: 'object' }),
+			'/users': get('People, with role, manager and status', list('User'), [{ name: 'status', in: 'query', schema: { enum: ['all', 'active', 'deactivated'] } }, ...page]),
+			'/resources': get('Systems people can request, with owners, approval rules and access levels', list('Resource'), page),
+			'/access': get('Who has what (grants)', list('Grant'), [
+				{ name: 'status', in: 'query', schema: { enum: ['active', 'all'] } },
+				{ name: 'user_email', in: 'query', schema: { type: 'string' } },
+				{ name: 'resource_id', in: 'query', schema: { type: 'string' } },
+				...page
+			]),
+			'/requests': get('Access requests and removals in a period, with approvals (the audit population)', list('Request'), [
+				...period,
+				{ name: 'type', in: 'query', schema: { type: 'string' }, description: 'Comma-separated: new_hire, transfer, change, new_access, extension, removal' },
+				{ name: 'privileged', in: 'query', schema: { type: 'boolean' } },
+				{ name: 'exceptions', in: 'query', schema: { type: 'boolean' } },
+				...page
+			]),
+			'/requests/{number}': {
+				get: {
+					summary: 'One request with approvals, full timeline and record fingerprint',
+					parameters: [{ name: 'number', in: 'path', required: true, schema: { type: 'integer' } }],
+					responses: { '200': { description: 'OK' }, '404': { description: 'Not found' } }
+				}
+			},
+			'/reviews': get('Access review campaigns', { type: 'object' }, page),
+			'/reviews/{id}': { get: { summary: 'A review with every item and decision', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { '200': { description: 'OK' } } } },
+			'/events': get('The audit log', list('Event'), [...period, { name: 'action', in: 'query', schema: { type: 'string' }, description: 'e.g. request, grant.created' }, ...page])
+		},
+		components: {
+			securitySchemes: { bearer: { type: 'http', scheme: 'bearer' } },
+			schemas: {
+				User: { type: 'object', properties: { id: { type: 'string' }, email: { type: 'string' }, name: { type: 'string' }, title: { type: 'string' }, role: { enum: ['owner', 'admin', 'member'] }, status: { enum: ['active', 'deactivated'] }, manager: person, source: { enum: ['manual', 'directory'] }, joined_at: { type: 'string' }, last_login_at: { type: ['string', 'null'] } } },
+				Resource: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string' }, owner: person, approval_policy: { enum: ['none', 'manager', 'approvers', 'manager_then_approvers'] }, access_levels: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string' }, privileged: { type: 'boolean' } } } } } },
+				Grant: { type: 'object', properties: { id: { type: 'string' }, user: person, resource: { type: 'object' }, access_level: { type: 'object' }, status: { enum: ['active', 'pending_revoke', 'revoked'] }, source: { enum: ['request', 'manual', 'import', 'idp'] }, request_number: { type: ['integer', 'null'] }, granted_at: { type: 'string' }, expires_at: { type: ['string', 'null'] } } },
+				Request: {
+					type: 'object',
+					properties: {
+						number: { type: 'integer' },
+						kind: { enum: ['grant', 'revoke'] },
+						type: { enum: ['new_hire', 'transfer', 'change', 'new_access', 'extension', 'removal'] },
+						privileged: { type: 'boolean' },
+						status: { enum: ['pending_approval', 'pending_fulfillment', 'completed', 'denied', 'cancelled'] },
+						user: person,
+						manager_at_request: person,
+						resource: { type: 'object' },
+						access_level: { type: 'object' },
+						requested_by: person,
+						requested_at: { type: 'string' },
+						justification: { type: 'string' },
+						approvals: {
+							type: 'array',
+							items: { type: 'object', properties: { step: { type: 'integer' }, decision: { enum: ['approved', 'denied'] }, capacity: { enum: ['manager', 'system_owner', 'approver', 'admin_fallback', 'admin_override', 'self', null] }, approver: person, at: { type: 'string' } } }
+						},
+						approved_at: { type: ['string', 'null'] },
+						fulfilled_at: { type: ['string', 'null'] },
+						flags: { type: 'array', items: { type: 'string' } },
+						exception: { type: 'boolean' }
+					}
+				},
+				Event: { type: 'object', properties: { id: { type: 'string' }, at: { type: 'string' }, actor: person, action: { type: 'string' }, request_number: { type: ['integer', 'null'] }, summary: { type: 'string' } } }
+			}
+		}
+	};
+}

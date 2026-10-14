@@ -312,5 +312,21 @@ ALTER TABLE members ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
 ALTER TABLE members ADD COLUMN role_source TEXT NOT NULL DEFAULT 'manual';
 ALTER TABLE members ADD COLUMN deactivated_by TEXT NOT NULL DEFAULT '';
 ALTER TABLE grants ADD COLUMN idp_group TEXT
+`,
+	// Read-only API tokens for GRC tools and scripts.
+	`
+CREATE TABLE api_tokens (
+	id TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	name TEXT NOT NULL,
+	token_hash TEXT NOT NULL UNIQUE,
+	prefix TEXT NOT NULL,
+	created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+	created_at TEXT NOT NULL,
+	expires_at TEXT,
+	last_used_at TEXT,
+	revoked_at TEXT
+);
+CREATE INDEX api_tokens_org ON api_tokens(org_id)
 `
 ];

@@ -20,6 +20,7 @@ Small teams usually handle access in Slack DMs and a spreadsheet, or pay for a h
 - **Audit log** of every request, decision, grant and setting change, exportable as CSV.
 - **Notifications** by email (SMTP) and to a Slack channel (incoming webhook).
 - **Directory sync** from your IdP: SCIM 2.0 push (Okta, Entra ID, JumpCloud, OneLogin, Rippling) or scheduled pulls from Google Workspace, the Okta API and Microsoft Graph. People are added with title and manager, and deactivation in the IdP offboards them (opening removals for all their access). IdP groups map to ac·modern admins, or to access levels, so access that already lives in the IdP is detected and tracked. Access granted there without a request is flagged in the audit evidence.
+- **API for GRC tools.** Read-only, org-scoped tokens and a REST API (`/api/v1`, OpenAPI at `/api/v1/openapi.json`) for Vanta, Drata, Secureframe or your own scripts: users, resources, access, requests with approvals (the audit population), reviews and the audit log.
 - **Single sign-on (OIDC)** per organisation: Okta, Entra ID, Google, JumpCloud, Authentik, Keycloak. Email domains are claimed per org (DNS-verified in the cloud), accounts are created on first sign-in, and SSO can be required, with owners keeping a password as a break-glass.
 
 | | |

@@ -179,7 +179,7 @@ pnpm screenshots                           # regenerates docs/screenshots from d
 pnpm docs:dev                              # Mintlify docs at http://localhost:3000 (regenerates the API reference first)
 ```
 
-Stack: SvelteKit (adapter-node), Svelte 5, Tailwind 4, TypeScript, Node 24 (built-in `node:sqlite`) or `pg`. The UI uses the same theme as pg·modern and octo·modern.
+Stack: SvelteKit (adapter-node), Svelte 5, Tailwind 4, TypeScript, Node 26 (built-in `node:sqlite`; 24+ works) or `pg`. The UI uses the same theme as pg·modern and octo·modern.
 
 Code map: `src/lib/server/requests.ts` is the workflow (approval steps, fulfillment, revocation, webhooks), `grants.ts` covers grants, expiry and offboarding, `reviews.ts` the review campaigns, `db.ts` the SQLite/Postgres layer, and `schema.ts` the migrations.
 

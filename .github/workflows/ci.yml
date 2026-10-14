@@ -26,11 +26,12 @@ jobs:
       - name: Fix workspace permissions
         run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
       - uses: actions/checkout@v7
+      # pnpm version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
-      # corepack honours "packageManager" in package.json (pnpm 9).
-      - run: corepack enable
+          node-version-file: .nvmrc
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm test
@@ -42,7 +43,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_PASSWORD: ci
           POSTGRES_DB: acm_test
@@ -58,10 +59,11 @@ jobs:
       - name: Fix workspace permissions
         run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
       - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
-      - run: corepack enable
+          node-version-file: .nvmrc
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       # The service's host port is only known at runtime, so the URL is set here.
       - run: pnpm test

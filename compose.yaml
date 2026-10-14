@@ -33,14 +33,15 @@ services:
       - ac-modern-data:/data
 
   # postgres:
-  #   image: postgres:17-alpine
+  #   image: postgres:18-alpine
   #   restart: unless-stopped
   #   environment:
   #     POSTGRES_USER: acm
   #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
   #     POSTGRES_DB: acm
   #   volumes:
-  #     - ac-modern-pg:/var/lib/postgresql/data
+  #     # Postgres 18+ keeps its data under /var/lib/postgresql/<major>/.
+  #     - ac-modern-pg:/var/lib/postgresql
 
 volumes:
   ac-modern-data:

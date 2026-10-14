@@ -8,6 +8,10 @@ Apps in Entra ID are typically assigned to groups. Adding someone to the group g
 
 ## Connect
 
+<Frame>
+  <img src="/screenshots/settings-integrations.png" alt="Settings → Integrations" />
+</Frame>
+
 **Settings → Integrations → Microsoft Entra ID.** Register an app with the **application** permission `GroupMember.ReadWrite.All` (grant admin consent) and a client secret, then enter the tenant ID, client ID and secret.
 
 This is a write permission. [Directory sync](/identity/directory-sync#microsoft-entra-id) only needs `User.Read.All` and `GroupMember.Read.All`, so you may prefer a separate app registration for provisioning.

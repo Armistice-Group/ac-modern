@@ -36,17 +36,38 @@ async function start() {
 	throw new Error('ac·modern did not start');
 }
 
+/**
+ * Each shot: a page, optionally something to do there first (open a dialog…). `light`
+ * shots are taken in the light theme as well. Paths are resolved after sign-in.
+ */
 const SHOTS = [
-	['overview', '/'],
-	['catalog', '/catalog'],
-	['requests', '/requests?view=approve'],
-	['request', '/requests/3'],
-	['access', '/access'],
-	['review', null],
-	['resource', null],
-	['people', '/people'],
-	['evidence', '/evidence?from=2026-01-01'],
-	['settings-directory', '/settings/directory']
+	{ name: 'overview', path: '/', light: true },
+	{ name: 'catalog', path: '/catalog', light: true },
+	{ name: 'request-dialog', path: '/catalog', act: (p) => p.locator('article', { hasText: 'Production database' }).locator('button:has-text("Request")').click() },
+	{ name: 'requests', path: '/requests?view=approve' },
+	{ name: 'request', path: '/requests/3', light: true },
+	{ name: 'access', path: '/access' },
+	{ name: 'reviews', path: '/reviews' },
+	{ name: 'review', path: async (p) => (await p.goto(`${APP}/reviews`), p.locator('a[href^="/reviews/"]').first().getAttribute('href')) },
+	{ name: 'resources', path: '/resources' },
+	{ name: 'resource', path: async (p) => (await p.goto(`${APP}/resources`), p.locator('a[href^="/resources/"]:has-text("AWS")').first().getAttribute('href')) },
+	{ name: 'resource-editor', path: async (p) => (await p.goto(`${APP}/resources`), p.locator('a[href^="/resources/"]:has-text("Production database")').first().getAttribute('href')), act: (p) => p.click('button:has-text("Settings")'), full: true },
+	{ name: 'people', path: '/people' },
+	{ name: 'person', path: async (p) => (await p.goto(`${APP}/people`), p.locator('a[href^="/people/"]:has-text("Jamie Ortiz")').first().getAttribute('href')) },
+	{ name: 'transfer', path: async (p) => (await p.goto(`${APP}/people`), p.locator('a[href^="/people/"]:has-text("Quinn Adams")').first().getAttribute('href')), act: async (p) => {
+		await p.click('button:has-text("Transfer")');
+		await p.fill('#reason', 'Moving from support to the platform team');
+		await p.locator('dialog input[placeholder="Copy a teammate’s access…"]').fill('Sam');
+		await p.locator('dialog button:has-text("Sam Rivera")').click();
+		await p.locator('dialog label:has-text("Stripe")').click();
+	} },
+	{ name: 'evidence', path: '/evidence?from=2026-01-01', light: true },
+	{ name: 'evidence-ticket', path: '/evidence/print?numbers=11', full: true },
+	{ name: 'audit', path: '/audit' },
+	{ name: 'settings-sso', path: '/settings/sso' },
+	{ name: 'settings-directory', path: '/settings/directory' },
+	{ name: 'settings-integrations', path: '/settings/integrations' },
+	{ name: 'settings-api', path: '/settings/api' }
 ];
 
 async function main() {
@@ -57,27 +78,28 @@ async function main() {
 		const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
 		await ctx.addInitScript((t) => localStorage.setItem('acm-theme', t), theme);
 		const page = await ctx.newPage();
+		if (theme === 'dark') {
+			// The sign-in page, before signing in.
+			await page.goto(`${APP}/login`, { waitUntil: 'networkidle' });
+			await page.screenshot({ path: join(OUT, 'login.png') });
+			console.log('  ✓ docs/screenshots/login.png');
+		}
 		await page.goto(`${APP}/login`, { waitUntil: 'networkidle' });
 		await page.fill('#email', 'avery@northwind.example');
 		await page.fill('#pw', 'demo-password');
 		await page.click('button:has-text("Sign in")');
 		await page.waitForURL(`${APP}/`);
-		for (const [name, path] of SHOTS) {
-			if (theme === 'light' && !['overview', 'request', 'catalog'].includes(name)) continue;
-			let target = path;
-			if (name === 'review') {
-				await page.goto(`${APP}/reviews`);
-				target = await page.locator('a[href^="/reviews/"]').first().getAttribute('href');
+		for (const shot of SHOTS) {
+			if (theme === 'light' && !shot.light) continue;
+			const target = typeof shot.path === 'function' ? await shot.path(page) : shot.path;
+			await page.goto(`${APP}${target}`, { waitUntil: 'networkidle' });
+			if (shot.act) {
+				await shot.act(page);
+				await page.waitForLoadState('networkidle');
 			}
-			if (name === 'resource') {
-				await page.goto(`${APP}/resources`);
-				target = await page.locator('a[href^="/resources/"]:has-text("AWS")').first().getAttribute('href');
-			}
-			await page.goto(`${APP}${target}`);
-			await page.waitForLoadState('networkidle');
-			await sleep(250);
-			const file = join(OUT, theme === 'dark' ? `${name}.png` : `${name}-light.png`);
-			await page.screenshot({ path: file });
+			await sleep(350);
+			const file = join(OUT, theme === 'dark' ? `${shot.name}.png` : `${shot.name}-light.png`);
+			await page.screenshot({ path: file, fullPage: !!shot.full });
 			console.log(`  ✓ ${file.replace(ROOT + '/', '')}`);
 		}
 		await ctx.close();

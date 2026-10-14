@@ -12,6 +12,7 @@ ENV ACM_VERSION=$ACM_VERSION
 RUN pnpm build && pnpm prune --prod
 
 FROM node:24-alpine
+LABEL org.opencontainers.image.source=https://github.com/Armistice-Group/ac-modern
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000 \

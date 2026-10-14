@@ -10,10 +10,10 @@ icon: arrow-up-circle
   </Step>
   <Step title="Pull and restart">
     ```sh
-    git pull
-    docker compose up -d --build
+    docker compose pull
+    docker compose up -d
     ```
-    or pull the new image tag if you publish one.
+    Pin a version with a tag such as `ghcr.io/armistice-group/ac-modern:0.1` instead of `latest`. Building from source: `git pull && docker compose up -d --build`.
   </Step>
   <Step title="Check">
     Migrations run on startup. The version shows at the bottom of the sidebar and in `/api/health`.

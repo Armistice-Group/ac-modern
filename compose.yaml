@@ -5,8 +5,9 @@
 #
 services:
   ac-modern:
-    build: .
-    # image: ghcr.io/<you>/ac-modern:latest
+    image: ghcr.io/armistice-group/ac-modern:latest
+    # Or build from a checkout instead:
+    # build: .
     container_name: ac-modern
     restart: unless-stopped
     ports:

@@ -30,7 +30,7 @@
     "links": [
       {
         "label": "GitHub",
-        "href": "https://github.com/your-org/ac-modern"
+        "href": "https://github.com/Armistice-Group/ac-modern"
       }
     ],
     "primary": {
@@ -144,7 +144,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/your-org/ac-modern"
+      "github": "https://github.com/Armistice-Group/ac-modern"
     },
     "links": [
       {
@@ -173,7 +173,7 @@
           },
           {
             "label": "octo·modern",
-            "href": "https://github.com/your-org/octo-modern"
+            "href": "https://github.com/vitafortis/octo-modern"
           }
         ]
       }

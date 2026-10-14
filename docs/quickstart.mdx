@@ -6,13 +6,25 @@ icon: rocket
 
 <Steps>
   <Step title="Start the container">
-    From a checkout of the repository:
+    <Tabs>
+      <Tab title="Published image">
+        ```sh
+        curl -O https://raw.githubusercontent.com/Armistice-Group/ac-modern/main/compose.yaml
+        docker compose up -d
+        ```
+        This pulls `ghcr.io/armistice-group/ac-modern:latest` (linux/amd64 and linux/arm64).
+      </Tab>
+      <Tab title="From source">
+        ```sh
+        git clone https://github.com/Armistice-Group/ac-modern
+        cd ac-modern
+        # in compose.yaml, replace the image: line with build: .
+        docker compose up -d --build
+        ```
+      </Tab>
+    </Tabs>
 
-    ```sh
-    docker compose up -d
-    ```
-
-    This builds the image and starts ac·modern on port **3040**, with its data in the `ac-modern-data` volume. The `compose.yaml` file lists every option, commented out.
+    ac·modern starts on port **3040**, with its data in the `ac-modern-data` volume. The `compose.yaml` file lists every option, commented out.
   </Step>
   <Step title="Create your organisation">
     Open `http://<host>:3040`. The setup wizard asks for your team's name and creates the owner account.

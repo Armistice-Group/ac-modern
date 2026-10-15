@@ -3,6 +3,7 @@ import { addMember, createUser, inviteByToken, markInviteAccepted, setSessionOrg
 import { startSession, throttled } from '#lib/server/auth.ts';
 import { hashPassword, verifyPassword } from '#lib/server/crypto.ts';
 import { db } from '#lib/server/db.ts';
+import { hasMfa } from '#lib/server/mfa.ts';
 import { record } from '#lib/server/events.ts';
 import { assertCanAddMembers } from '#lib/server/billing.ts';
 import { badRequest, body, handler, HttpError, notFound, str } from '#lib/server/http.ts';
@@ -35,6 +36,8 @@ export const POST = handler(async (event) => {
 		await record(tx, { orgId: invite.org_id, actorId: userId, action: 'member.joined', subject: invite.email, summary: `${invite.email} joined as ${invite.role}` });
 	});
 	if (event.locals.user?.id === userId && event.locals.sessionId) await setSessionOrg(d, event.locals.sessionId, invite.org_id);
+	// An existing account with two-step verification signs in with its code instead.
+	else if (await hasMfa(d, userId)) return json({ ok: true, signIn: true });
 	else await startSession(event.cookies, userId, invite.org_id, event.locals.secure);
 	return json({ ok: true });
 });

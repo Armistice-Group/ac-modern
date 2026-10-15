@@ -12,6 +12,8 @@ declare global {
 			sessionId: string | null;
 			/** Signed in with a password to an org that requires SSO: send them through SSO first. */
 			ssoRequired: boolean;
+			/** Signed in with a password to an org that requires two-step verification, without it set up. */
+			mfaSetupRequired: boolean;
 			/** The URL origin the browser used (for links in notifications). */
 			origin: string;
 			secure: boolean;

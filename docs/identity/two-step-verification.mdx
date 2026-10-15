@@ -1,0 +1,49 @@
+---
+title: Two-step verification
+description: A code from an authenticator app as well as the password, for people who sign in with a password.
+icon: shield-check
+---
+
+People who sign in with a password can add a second step: a 6-digit code from an authenticator app (1Password, Google Authenticator, Authy, Microsoft Authenticator…). Sign-ins through [single sign-on](/identity/single-sign-on) don't ask for it: your identity provider handles MFA there.
+
+## Turn it on
+
+<Steps>
+  <Step title="Set up">
+    **Account → Two-step verification → Set up.** Scan the QR code with your authenticator app, or type the key into it.
+  </Step>
+  <Step title="Confirm">
+    Enter the code the app shows and click **Turn on**. Every other device you were signed in on is signed out.
+  </Step>
+  <Step title="Save your recovery codes">
+    You get ten recovery codes, shown once. Each one signs you in once if you lose your phone. Copy or download them into your password manager.
+  </Step>
+</Steps>
+
+From then on, signing in with your password asks for a code. **Use a recovery code** on that screen takes one of the ten instead. A code works once: the same code can't be used again, even within its 30 seconds.
+
+Under **Account** you can make **new recovery codes** (the old ones stop working) or **turn it off**, both with a current code.
+
+<Note>
+  A password reset link changes the password but doesn't sign you in when two-step verification is on: you sign in with the new password and a code. The same goes for accepting an invite with an existing account.
+</Note>
+
+## Require it
+
+**Settings → General → Sign-in security → Require two-step verification for password sign-in.** It shows how many members with a password already have it on.
+
+With it on, anyone who signs in with a password and hasn't set it up is taken to **Account** and can't do anything else until they do. The API answers 403 with the same message. SSO sign-ins aren't affected. While an organisation requires it, its members can't turn it off.
+
+If your organisation also [requires SSO](/identity/single-sign-on), the only password sign-ins left are owners' break-glass accounts, and this makes sure those have a second factor too.
+
+## Lost phone
+
+If someone has lost both their phone and their recovery codes, an admin opens their page under **People** and clicks **Reset** next to *Two-step verification*. They're signed out everywhere and set it up again at their next password sign-in (immediately, if it's required). Only owners can reset an owner, and nobody can reset their own. Check it's really them first, the same way you would for a password reset.
+
+## What's recorded
+
+- **Audit log:** turning it on or off, new recovery codes, signing in with a recovery code, wrong codes at sign-in, an admin's reset, and changes to the requirement.
+- **People:** shows *2FA*, *No 2FA* or *SSO* next to each person's last sign-in, and their page says how they last signed in.
+- **API:** `GET /api/v1/users` includes `mfa_enabled` and `last_sign_in_method` (`password`, `password+totp` or `sso`), so an auditor or GRC tool can check coverage.
+
+Secrets are stored encrypted with the server's key, and recovery codes only as hashes.

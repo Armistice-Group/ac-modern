@@ -86,6 +86,23 @@
 		}
 	}
 
+	async function resetTwoStep() {
+		const ok = await confirmAction({
+			title: `Reset ${displayName(p)}’s two-step verification?`,
+			body: 'For when they’ve lost their phone and recovery codes. They’re signed out everywhere and set it up again the next time they sign in with a password. Check it’s really them first.',
+			confirmLabel: 'Reset',
+			danger: true
+		});
+		if (!ok) return;
+		try {
+			await api.post(`/api/people/${p.id}/mfa-reset`, {});
+			toast('success', 'Two-step verification reset');
+			await invalidateAll();
+		} catch (err) {
+			toast('error', 'Couldn’t reset it', errorMessage(err));
+		}
+	}
+
 	async function reactivate() {
 		try {
 			await api.post(`/api/people/${p.id}/reactivate`, {});
@@ -123,7 +140,11 @@
 				<Avatar user={p} size="size-10" />
 				<div class="min-w-0 text-xs text-muted-foreground">
 					<p>Joined {date(p.joinedAt)}</p>
-					<p>{p.lastLoginAt ? `Last signed in ${date(p.lastLoginAt)}` : 'Never signed in'}</p>
+					<p>{p.lastLoginAt ? `Last signed in ${date(p.lastLoginAt)}${p.lastLoginMethod === 'sso' ? ' with SSO' : p.lastLoginMethod === 'password+totp' ? ' with password and code' : p.lastLoginMethod === 'password' ? ' with a password' : ''}` : 'Never signed in'}</p>
+					<p class="flex items-center gap-1.5">
+						Two-step verification: {p.mfa ? 'on' : 'off'}
+						{#if p.mfa && !self && (p.role !== 'owner' || data.myRole === 'owner')}<button class="text-primary hover:underline" onclick={resetTwoStep}>Reset</button>{/if}
+					</p>
 				</div>
 			</div>
 			<div class="space-y-3">

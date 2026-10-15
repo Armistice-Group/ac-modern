@@ -444,5 +444,14 @@ ALTER TABLE reviews ADD COLUMN reminded_at TEXT;
 ALTER TABLE reviews ADD COLUMN overdue_notified_at TEXT;
 ALTER TABLE review_items ADD COLUMN capacity TEXT NOT NULL DEFAULT '';
 ALTER TABLE review_items ADD COLUMN removal_request_id TEXT REFERENCES requests(id) ON DELETE SET NULL
+`,
+	// Two-step verification (TOTP) for password sign-in, and how each person last signed in.
+	`
+ALTER TABLE users ADD COLUMN totp_secret TEXT;
+ALTER TABLE users ADD COLUMN totp_pending TEXT;
+ALTER TABLE users ADD COLUMN totp_enabled_at TEXT;
+ALTER TABLE users ADD COLUMN totp_last_step INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN mfa_recovery TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE users ADD COLUMN last_login_method TEXT NOT NULL DEFAULT ''
 `
 ];

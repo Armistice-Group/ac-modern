@@ -46,6 +46,8 @@ export interface OrgSettings {
 	requirePrivilegedApproval?: boolean;
 	/** Admins may approve on behalf of the designated approver (recorded as an override). Default off. */
 	allowAdminOverride?: boolean;
+	/** Password sign-ins need two-step verification (TOTP). SSO sign-ins rely on the IdP's MFA. Default off. */
+	requireMfa?: boolean;
 }
 
 export interface SessionUser {
@@ -75,6 +77,10 @@ export interface Person {
 	status: 'active' | 'deactivated';
 	joinedAt: string;
 	lastLoginAt: string | null;
+	/** Two-step verification (TOTP) is on for password sign-in. */
+	mfa: boolean;
+	/** How they last signed in: password, password+totp or sso ('' if never). */
+	lastLoginMethod: string;
 }
 
 export interface ResourceRole {

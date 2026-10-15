@@ -142,6 +142,8 @@ interface PersonRow {
 	status: 'active' | 'deactivated';
 	joined_at: string;
 	last_login_at: string | null;
+	totp_enabled_at: string | null;
+	last_login_method: string;
 }
 
 const toPerson = (r: PersonRow): Person => ({
@@ -153,10 +155,12 @@ const toPerson = (r: PersonRow): Person => ({
 	managerId: r.manager_id,
 	status: r.status,
 	joinedAt: r.joined_at,
-	lastLoginAt: r.last_login_at
+	lastLoginAt: r.last_login_at,
+	mfa: !!r.totp_enabled_at,
+	lastLoginMethod: r.last_login_method ?? ''
 });
 
-const PERSON = `SELECT u.id, u.email, u.name, m.role, m.title, m.manager_id, m.status, m.joined_at, u.last_login_at
+const PERSON = `SELECT u.id, u.email, u.name, m.role, m.title, m.manager_id, m.status, m.joined_at, u.last_login_at, u.totp_enabled_at, u.last_login_method
 	FROM members m JOIN users u ON u.id = m.user_id`;
 
 export async function listPeople(db: Db, orgId: string, opts: { includeDeactivated?: boolean } = {}): Promise<Person[]> {
@@ -197,7 +201,9 @@ export async function adminIds(db: Db, orgId: string): Promise<string[]> {
 
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export async function createSession(db: Db, userId: string, orgId: string | null, method: 'password' | 'sso' = 'password'): Promise<string> {
+export type AuthMethod = 'password' | 'password+totp' | 'sso';
+
+export async function createSession(db: Db, userId: string, orgId: string | null, method: AuthMethod = 'password'): Promise<string> {
 	const token = randomToken();
 	await db.run('INSERT INTO sessions (id, user_id, org_id, auth_method, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)', [
 		sha256(token),
@@ -207,7 +213,7 @@ export async function createSession(db: Db, userId: string, orgId: string | null
 		now(),
 		new Date(Date.now() + SESSION_TTL_MS).toISOString()
 	]);
-	await db.run('UPDATE users SET last_login_at = ? WHERE id = ?', [now(), userId]);
+	await db.run('UPDATE users SET last_login_at = ?, last_login_method = ? WHERE id = ?', [now(), method, userId]);
 	return token;
 }
 

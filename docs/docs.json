@@ -78,7 +78,8 @@
             "group": "Identity",
             "pages": [
               "identity/single-sign-on",
-              "identity/directory-sync"
+              "identity/directory-sync",
+              "identity/two-step-verification"
             ]
           },
           {

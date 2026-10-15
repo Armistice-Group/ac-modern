@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import McpTokens from './McpTokens.svelte';
+	import TwoStep from './TwoStep.svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
 	import { toast } from '#lib/client/state.svelte.ts';
 	import type { PageProps } from './$types';
@@ -46,6 +47,7 @@
 <PageHeader title="Your account" description={page.data.viewer?.email} />
 
 <div class="max-w-xl space-y-6 px-8 pb-10">
+	{#if data.mfaSetupRequired && data.mfa}<TwoStep mfa={data.mfa} requiredBy={data.mfaRequiredBy} setupRequired hasPassword={data.hasPassword} />{/if}
 	<form class="card p-5" onsubmit={saveName}>
 		<div class="grid gap-3 sm:grid-cols-2">
 			<div><label class="label" for="name">Name</label><input id="name" class="input" bind:value={name} maxlength="120" /></div>
@@ -66,5 +68,6 @@
 		</div>
 		<button class="btn btn-primary">Change password</button>
 	</form>
-	{#if page.data.org}<McpTokens tokens={data.tokens} mcpUrl={data.mcpUrl} />{/if}
+	{#if !data.mfaSetupRequired && data.mfa}<TwoStep mfa={data.mfa} requiredBy={data.mfaRequiredBy} setupRequired={false} hasPassword={data.hasPassword} />{/if}
+	{#if page.data.org && !data.mfaSetupRequired}<McpTokens tokens={data.tokens} mcpUrl={data.mcpUrl} />{/if}
 </div>

@@ -31,6 +31,7 @@
 		"@types/node": "^26.6.4",
 		"@types/nodemailer": "^8.0.2",
 		"@types/pg": "^8.23.1",
+		"@types/qrcode": "1.5.5",
 		"playwright": "1",
 		"svelte": "^5.57.1",
 		"svelte-check": "^4.6.0",
@@ -41,7 +42,8 @@
 	"dependencies": {
 		"nodemailer": "^10.1.0",
 		"openid-client": "^6.8.8",
-		"pg": "^8.23.1"
+		"pg": "^8.23.1",
+		"qrcode": "1.5.4"
 	},
 	"packageManager": "pnpm@12.11.2",
 	"engines": {

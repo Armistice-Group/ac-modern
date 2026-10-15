@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { membershipsOf, userByEmail } from '#lib/server/accounts.ts';
 import { startSession, throttled } from '#lib/server/auth.ts';
 import { verifyPassword } from '#lib/server/crypto.ts';
+import { hasMfa, mfaTicket } from '#lib/server/mfa.ts';
 import { ssoSettings } from '#lib/server/sso.ts';
 import { db } from '#lib/server/db.ts';
 import { body, handler, HttpError, str } from '#lib/server/http.ts';
@@ -23,6 +24,8 @@ export const POST = handler(async (event) => {
 		if (!open.length) throw new HttpError(403, `${orgs[0].orgName} signs in with single sign-on`, { sso: `/auth/oidc/start?org=${orgs[0].orgId}` });
 		start = open[0];
 	}
+	// Two-step verification: the password alone doesn't start a session.
+	if (await hasMfa(d, user.id)) return json({ mfa: true, ticket: mfaTicket(user.id, start) });
 	await startSession(event.cookies, user.id, start, event.locals.secure);
 	return json({ ok: true });
 });

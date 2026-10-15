@@ -14,9 +14,9 @@
 
 	async function accept(body: Record<string, string>) {
 		try {
-			await api.post('/api/auth/invite', { token: page.params.token, ...body });
+			const r = await api.post<{ signIn?: boolean }>('/api/auth/invite', { token: page.params.token, ...body });
 			await invalidateAll();
-			goto('/?welcome=1');
+			goto(r.signIn ? '/login?next=%2F%3Fwelcome%3D1' : '/?welcome=1');
 		} catch (err) {
 			return errorMessage(err);
 		}

@@ -137,7 +137,9 @@ export async function handleV1(db: Db, orgId: string, path: string[], q: URLSear
 					manager: person(p.managerId ? byId.get(p.managerId) : null),
 					source: sources.get(p.id) ?? 'manual',
 					joined_at: p.joinedAt,
-					last_login_at: p.lastLoginAt
+					last_login_at: p.lastLoginAt,
+					mfa_enabled: p.mfa,
+					last_sign_in_method: p.lastLoginMethod || null
 				}));
 			return paginate(rows, q);
 		}

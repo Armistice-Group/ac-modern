@@ -27,6 +27,7 @@ export const PATCH = handler(async (event) => {
 	if (b.expiryReminderDays !== undefined) (patch.expiryReminderDays = int(b, 'expiryReminderDays', { min: 0, max: 60 }) ?? 0), changed.push('expiry reminders');
 	if (b.requirePrivilegedApproval !== undefined) (patch.requirePrivilegedApproval = b.requirePrivilegedApproval === true), changed.push(`privileged approval ${b.requirePrivilegedApproval ? 'required' : 'not required'}`);
 	if (b.allowAdminOverride !== undefined) (patch.allowAdminOverride = b.allowAdminOverride === true), changed.push(`admin override ${b.allowAdminOverride ? 'allowed' : 'not allowed'}`);
+	if (b.requireMfa !== undefined) (patch.requireMfa = b.requireMfa === true), changed.push(`two-step verification ${b.requireMfa ? 'required' : 'not required'} for password sign-in`);
 	if (b.defaultApproval !== undefined) {
 		if (!APPROVAL_POLICIES.includes(b.defaultApproval as ApprovalPolicy)) throw badRequest('Unknown approval policy');
 		patch.defaultApproval = b.defaultApproval as ApprovalPolicy;

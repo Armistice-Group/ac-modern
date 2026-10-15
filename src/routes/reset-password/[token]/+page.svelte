@@ -20,10 +20,10 @@
 		if (password.length < 8) return void (error = 'Use at least 8 characters');
 		busy = true;
 		try {
-			await api.post('/api/auth/reset', { token: page.params.token, password });
-			toast('success', 'Password changed', 'You’ve been signed out everywhere else.');
+			const r = await api.post<{ signIn?: boolean }>('/api/auth/reset', { token: page.params.token, password });
+			toast('success', 'Password changed', r.signIn ? 'Sign in with it and a code from your authenticator app.' : 'You’ve been signed out everywhere else.');
 			await invalidateAll();
-			goto('/');
+			goto(r.signIn ? '/login' : '/');
 		} catch (err) {
 			error = errorMessage(err);
 			busy = false;

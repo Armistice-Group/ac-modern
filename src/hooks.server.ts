@@ -63,6 +63,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.orgs = [];
 		event.locals.sessionId = null;
 		event.locals.ssoRequired = false;
+		event.locals.mfaSetupRequired = false;
 		const response = await resolve(event);
 		response.headers.set('X-Content-Type-Options', 'nosniff');
 		response.headers.set('Cache-Control', 'no-store');
@@ -98,6 +99,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (event.locals.ssoRequired && !NO_ORG_OK.some((p) => pathname.startsWith(p))) {
 			if (isApi) return json({ message: `${event.locals.org!.name} requires single sign-on` }, { status: 403 });
 			redirect(303, `/auth/oidc/start?org=${event.locals.org!.id}&next=${encodeURIComponent(pathname + event.url.search)}`);
+		}
+		if (event.locals.mfaSetupRequired && !NO_ORG_OK.some((p) => pathname.startsWith(p))) {
+			if (isApi) return json({ message: `${event.locals.org!.name} requires two-step verification. Turn it on under Account first.` }, { status: 403 });
+			redirect(303, '/account?mfa=required');
 		}
 		const admin = event.locals.role === 'owner' || event.locals.role === 'admin';
 		if (!admin && !isApi && (ADMIN_EXACT.includes(pathname) || ADMIN_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`)))) redirect(303, '/');

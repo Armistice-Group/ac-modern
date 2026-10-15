@@ -19,8 +19,8 @@
 					<div class="min-w-0 flex-1">
 						<a class="font-medium hover:underline" href="/reviews/{r.id}">{r.name}</a>
 						<p class="text-[0.6875rem] text-muted-foreground">{r.policyName ? 'Scheduled' : 'Started by hand'} {date(r.createdAt)}{r.dueAt ? ` · due ${date(r.dueAt)}` : ''}{r.closedAt ? ` · closed ${date(r.closedAt)}` : ''}</p>
+						<p class="font-mono text-[0.6875rem] text-muted-foreground tabular-nums">{r.decided}/{r.total} decided · {r.revoked} revoked · {r.removed} removed</p>
 					</div>
-					<span class="font-mono tabular-nums text-muted-foreground">{r.decided}/{r.total} decided · {r.revoked} revoked · {r.removed} removed</span>
 					{#if r.status === 'open'}<span class="badge {late ? 'badge-danger' : 'badge-primary'}">{late ? 'Overdue' : 'Open'}</span>
 					{:else if late}<span class="badge badge-warning">Closed late</span>
 					{:else}<span class="badge badge-success">On time</span>{/if}

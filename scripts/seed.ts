@@ -10,7 +10,7 @@ import { db } from '../src/lib/server/db.ts';
 import { recordGrant } from '../src/lib/server/grants.ts';
 import { complete, createRequest, decide, effects } from '../src/lib/server/requests.ts';
 import { saveResource, type ResourceInput } from '../src/lib/server/resources.ts';
-import { createReview, decideItem, reviewItems } from '../src/lib/server/reviews.ts';
+import { createReview, decideItem, reviewItems, savePolicy } from '../src/lib/server/reviews.ts';
 import { applyAccessChange } from '../src/lib/server/changes.ts';
 import { record } from '../src/lib/server/events.ts';
 import { saveOrgSettings } from '../src/lib/server/accounts.ts';
@@ -163,8 +163,11 @@ await record(d, { orgId: org.id, actorId: avery.id, action: 'member.updated', su
 
 // A review, partly done.
 const reviewId = await createReview(d, A(avery, true), { name: 'Q3 2026 access review', dueAt: inDays(6), resourceIds: [github.id, stripe.id, aws.id] }, fx);
-const items = await reviewItems(d, org.id, reviewId);
-for (const i of items.slice(0, 5)) await decideItem(d, A(avery, true), i.id, 'keep', '', fx);
+const items = await reviewItems(d, org.id, reviewId!);
+for (const i of items.filter((x) => x.grant.user.id !== avery.id).slice(0, 5)) await decideItem(d, A(avery, true), i.id, 'keep', '', fx);
+// Review policies: quarterly for everything, monthly for privileged access.
+await savePolicy(d, org.id, avery.id, null, { name: 'Quarterly access review', enabled: true, frequency: 'quarterly', scope: 'all', resourceIds: [], reviewer: 'owner', dueDays: 14, nextRunAt: inDays(40) });
+await savePolicy(d, org.id, avery.id, null, { name: 'Monthly privileged access review', enabled: true, frequency: 'monthly', scope: 'privileged', resourceIds: [], reviewer: 'owner', dueDays: 7, nextRunAt: inDays(12) });
 
 // Spread timestamps over the past week so the timeline reads naturally.
 const reqs = await d.all<{ id: string; number: number }>('SELECT id, number FROM requests WHERE org_id = ? ORDER BY number', [org.id]);

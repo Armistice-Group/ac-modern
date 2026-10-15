@@ -172,6 +172,7 @@
 								</td>
 								<td class="px-3 py-2.5 text-xs">
 									{#if q.kind === 'revoke'}<span class="text-muted-foreground">Removal: no approval needed</span>
+									{:else if !r.approvals.length && q.autoRule}<span class="text-muted-foreground" title={q.autoRule.reason}>Auto-approved by rule “{q.autoRule.name}”</span>
 									{:else if !r.approvals.length && q.policy === 'none'}<span class="text-muted-foreground">Pre-approved by policy</span>
 									{:else}
 										{#each r.approvals as a (a.step + a.at)}

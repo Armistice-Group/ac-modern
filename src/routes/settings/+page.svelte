@@ -145,7 +145,7 @@
 				<div>
 					<label class="label" for="smax">Sign-ins last</label>
 					<select id="smax" class="input" bind:value={sessionMax} onchange={() => save('smax', { sessionMaxHours: sessionMax })}>
-						{#each [8, 12, 24, 168, 336, 720] as h (h)}<option value={h}>{h < 24 ? `${h} hours` : h < 168 ? `${h / 24} day` : `${h / 168} ${h === 168 ? 'week' : 'weeks'}`}</option>{/each}
+						{#each [[8, '8 hours'], [12, '12 hours'], [24, '1 day'], [168, '1 week'], [336, '2 weeks'], [720, '30 days']] as [h, l] (h)}<option value={h}>{l}</option>{/each}
 					</select>
 				</div>
 				<div>

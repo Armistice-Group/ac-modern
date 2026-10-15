@@ -15,3 +15,10 @@ export async function jsonOrThrow<T>(res: Response, what: string): Promise<T> {
 	}
 	return (await res.json()) as T;
 }
+
+/** An account found in a connected system, for reconciliation: an email, a login, or both. */
+export interface MemberAccount {
+	email?: string;
+	login?: string;
+	name?: string;
+}

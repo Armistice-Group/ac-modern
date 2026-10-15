@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ReconciliationsBox from './ReconciliationsBox.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Download, Printer, ShieldAlert, FileCheck2, UserPlus, ArrowLeftRight, TriangleAlert, Copy, Inbox, MinusCircle } from '@lucide/svelte';
@@ -212,6 +213,8 @@
 			</section>
 		{/each}
 	</div>
+
+	<ReconciliationsBox runs={data.reconciliations} />
 
 	<section class="card p-5">
 		<div class="flex items-start justify-between gap-4">

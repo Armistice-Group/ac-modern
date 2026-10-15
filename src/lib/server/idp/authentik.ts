@@ -1,5 +1,5 @@
 import type { ScannedApp } from '#lib/types.ts';
-import { type Fetch, jsonOrThrow, ProviderError } from './http.ts';
+import { type Fetch, jsonOrThrow, type MemberAccount, ProviderError } from './http.ts';
 
 /**
  * Authentik group membership through its API (/api/v3). Applications in Authentik are
@@ -127,4 +127,12 @@ export async function authentikApps(cfg: AuthentikConfig, f: Fetch = fetch): Pro
 		});
 	}
 	return out;
+}
+
+// ── Reconciliation ───────────────────────────────────────────────────────────
+
+/** Active members of an access level's group. */
+export async function authentikMembers(cfg: AuthentikConfig, level: AuthentikLevel, f: Fetch = fetch): Promise<MemberAccount[]> {
+	const users = await all<{ email: string; username: string; name: string; is_active: boolean }>(cfg, f, `/core/users/?groups_by_pk=${encodeURIComponent(level.id)}&is_active=true`, 'Authentik group members');
+	return users.map((u) => ({ email: u.email ? u.email.toLowerCase() : undefined, login: u.username, name: u.name }));
 }

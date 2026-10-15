@@ -444,5 +444,37 @@ ALTER TABLE reviews ADD COLUMN reminded_at TEXT;
 ALTER TABLE reviews ADD COLUMN overdue_notified_at TEXT;
 ALTER TABLE review_items ADD COLUMN capacity TEXT NOT NULL DEFAULT '';
 ALTER TABLE review_items ADD COLUMN removal_request_id TEXT REFERENCES requests(id) ON DELETE SET NULL
+`,
+	// Reconciliation: a system's real user list compared with the access ac·modern records.
+	`
+CREATE TABLE reconciliations (
+	id TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+	source TEXT NOT NULL,
+	filename TEXT NOT NULL DEFAULT '',
+	run_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+	created_at TEXT NOT NULL,
+	counts TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX reconciliations_org ON reconciliations(org_id, created_at);
+
+CREATE TABLE reconciliation_items (
+	id TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	reconciliation_id TEXT NOT NULL REFERENCES reconciliations(id) ON DELETE CASCADE,
+	account TEXT NOT NULL,
+	user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+	grant_id TEXT REFERENCES grants(id) ON DELETE SET NULL,
+	role_id TEXT REFERENCES resource_roles(id) ON DELETE SET NULL,
+	status TEXT NOT NULL,
+	level TEXT NOT NULL DEFAULT '',
+	detail TEXT NOT NULL DEFAULT '',
+	resolution TEXT,
+	resolved_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+	resolved_at TEXT,
+	note TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX reconciliation_items_run ON reconciliation_items(reconciliation_id)
 `
 ];

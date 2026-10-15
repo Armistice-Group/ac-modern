@@ -1,6 +1,6 @@
 import type { DirectoryGroup, DirectoryUser } from '../directory.ts';
 import type { ScannedApp } from '#lib/types.ts';
-import { type Fetch, jsonOrThrow, ProviderError } from './http.ts';
+import { type Fetch, jsonOrThrow, type MemberAccount, ProviderError } from './http.ts';
 
 /** Microsoft Entra ID through Microsoft Graph, as an app with User.Read.All and GroupMember.Read.All. */
 export interface EntraConfig {
@@ -183,4 +183,13 @@ export async function entraApps(cfg: EntraConfig, f: Fetch = fetch): Promise<Sca
 		});
 	}
 	return out;
+}
+
+// ── Reconciliation ───────────────────────────────────────────────────────────
+
+/** Users in an access level's group, including through nested groups. */
+export async function entraMembers(cfg: EntraConfig, level: EntraLevel, f: Fetch = fetch): Promise<MemberAccount[]> {
+	const token = await graphToken(cfg, f);
+	const users = await pages<GUser>(f, token, `${GRAPH}/groups/${encodeURIComponent(level.id)}/transitiveMembers/microsoft.graph.user?$select=id,displayName,mail,userPrincipalName&$top=999`);
+	return users.map((u) => ({ email: (u.mail || u.userPrincipalName).toLowerCase(), login: u.userPrincipalName, name: u.displayName }));
 }

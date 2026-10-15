@@ -1,4 +1,4 @@
-import type { ApprovalCapacity, RequestCategory, RequestReason, RequestStatus, Role } from './types.ts';
+import type { ApprovalCapacity, ReconciliationResolution, ReconciliationStatus, RequestCategory, RequestReason, RequestStatus, Role } from './types.ts';
 
 export function displayName(u: { name: string; email: string } | null | undefined): string {
 	if (!u) return 'System';
@@ -123,4 +123,27 @@ export const HUES: Record<string, number> = {
 	red: 25,
 	pink: 350,
 	slate: 260
+};
+
+export const RECONCILIATION_STATUS: Record<ReconciliationStatus, string> = {
+	matched: 'Matched',
+	unknown: 'In the system, not in ac·modern',
+	missing: 'In ac·modern, not in the system',
+	level_mismatch: 'Different level'
+};
+
+export const RECONCILIATION_RESOLUTION: Record<ReconciliationResolution, string> = {
+	recorded: 'Recorded as existing access',
+	removed_in_system: 'Removed or fixed in the system',
+	service_account: 'Service or shared account',
+	closed: 'Record closed',
+	kept: 'Kept as is'
+};
+
+/** What can be done about each kind of finding. */
+export const RECONCILIATION_ACTIONS: Record<ReconciliationStatus, ReconciliationResolution[]> = {
+	matched: [],
+	unknown: ['recorded', 'removed_in_system', 'service_account'],
+	missing: ['closed', 'kept'],
+	level_mismatch: ['recorded', 'removed_in_system', 'kept']
 };

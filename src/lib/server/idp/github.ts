@@ -1,4 +1,4 @@
-import { type Fetch, jsonOrThrow, ProviderError } from './http.ts';
+import { type Fetch, jsonOrThrow, type MemberAccount, ProviderError } from './http.ts';
 
 /**
  * GitHub organisation membership and teams, with a token that can administer the org
@@ -88,4 +88,18 @@ export async function githubRevoke(cfg: GitHubConfig, level: GitHubLevel, who: {
 	if (!inv) throw new ProviderError(`no GitHub username on file for ${who.email} and no pending invitation, so it can’t be removed automatically`);
 	await ok(await gh(cfg, f, 'DELETE', `/orgs/${cfg.org}/invitations/${inv.id}`), 'GitHub invitation');
 	return `GitHub: cancelled the pending invitation for ${who.email}`;
+}
+
+// ── Reconciliation ───────────────────────────────────────────────────────────
+
+/** Org members with the level's role, or a team's members (by GitHub username). */
+export async function githubMembers(cfg: GitHubConfig, level: GitHubLevel, f: Fetch = fetch): Promise<MemberAccount[]> {
+	const path = level.type === 'github_org' ? `/orgs/${cfg.org}/members?role=${level.role}` : `/orgs/${cfg.org}/teams/${encodeURIComponent(level.team)}/members?role=${level.role}`;
+	const out: MemberAccount[] = [];
+	for (let page = 1; page < 100; page++) {
+		const users = await jsonOrThrow<{ login: string }[]>(await gh(cfg, f, 'GET', `${path}&per_page=100&page=${page}`), level.type === 'github_org' ? 'GitHub members' : `GitHub team ${level.team}`);
+		out.push(...users.map((u) => ({ login: u.login })));
+		if (users.length < 100) break;
+	}
+	return out;
 }

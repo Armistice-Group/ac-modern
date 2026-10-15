@@ -3,6 +3,7 @@ import { db } from '#lib/server/db.ts';
 import { EXCEPTIONS, evidenceRows, outOfProcess } from '#lib/server/evidence.ts';
 import { adminCtx } from '#lib/server/http.ts';
 import { period } from '#lib/server/period.ts';
+import { listReconciliations } from '#lib/server/reconcile.ts';
 import { listResources } from '#lib/server/resources.ts';
 import { describeRule, listRules } from '#lib/server/rules.ts';
 import type { RequestCategory } from '#lib/types.ts';
@@ -38,6 +39,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			removals: all.filter((r) => r.request.kind === 'revoke').length
 		},
 		outside: await outOfProcess(d, c.org.id, p.from, p.to),
+		reconciliations: await listReconciliations(d, c.org.id, { from: p.from, to: p.to }),
 		control: {
 			resources: resources.length,
 			preApproved: resources.filter((r) => r.approval === 'none').map((r) => r.name),

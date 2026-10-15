@@ -1,7 +1,7 @@
 import { createSign } from 'node:crypto';
 import { GOOGLE_DIRECTORY_SCOPES, GOOGLE_PROVISIONING_SCOPES, googleHint, parseServiceAccountKey } from '#lib/google.ts';
 import type { DirectoryGroup, DirectoryUser } from '../directory.ts';
-import { type Fetch, jsonOrThrow, ProviderError } from './http.ts';
+import { type Fetch, jsonOrThrow, type MemberAccount, ProviderError } from './http.ts';
 
 /**
  * Google Workspace through the Admin SDK, as a service account with domain-wide delegation
@@ -135,4 +135,26 @@ export async function googleRevoke(cfg: GoogleConfig, level: GoogleLevel, email:
 	const res = await call(f, token, 'DELETE', `${API}/groups/${encodeURIComponent(level.group)}/members/${encodeURIComponent(email)}`);
 	if (res.status !== 404 && !res.ok) await googleJson(res, 'Google group', cfg);
 	return `Google Workspace: ${email} removed from ${level.group}`;
+}
+
+// ── Reconciliation ───────────────────────────────────────────────────────────
+
+/**
+ * Who a level gives access to: members of its group with that role (including through
+ * nested groups), or, for "the account itself", every active account.
+ */
+export async function googleMembers(cfg: GoogleConfig, level: GoogleLevel, f: Fetch = fetch): Promise<MemberAccount[]> {
+	const token = await googleToken(cfg, DIRECTORY_SCOPES, f);
+	if (level.type === 'google_account') {
+		const users = await pages<GUser>(cfg, f, token, `${API}/users?customer=my_customer&maxResults=500`, 'users');
+		return users.filter((u) => !u.suspended && !u.archived).map((u) => ({ email: u.primaryEmail.toLowerCase(), name: u.name?.fullName }));
+	}
+	const members = await pages<{ email?: string; type: string; role: string }>(
+		cfg,
+		f,
+		token,
+		`${API}/groups/${encodeURIComponent(level.group)}/members?maxResults=200&includeDerivedMembership=true`,
+		'members'
+	);
+	return members.filter((m) => m.type === 'USER' && m.email && m.role === level.role).map((m) => ({ email: m.email!.toLowerCase() }));
 }

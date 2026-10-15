@@ -4,9 +4,10 @@ import { EXCEPTIONS, evidenceRows, ticket, type EvidenceRow } from './evidence.t
 import { listEvents } from './events.ts';
 import { listGrants } from './grants.ts';
 import { listResources } from './resources.ts';
+import { getReconciliation, listReconciliations, reconciliationItems } from './reconcile.ts';
 import { describePolicy, getReview, listPolicies, listReviews, reviewItems } from './reviews.ts';
 import { describeRule, listRules } from './rules.ts';
-import type { GrantStatus, RequestCategory, Review } from '#lib/types.ts';
+import type { GrantStatus, Reconciliation, RequestCategory, Review } from '#lib/types.ts';
 
 /**
  * The read-only REST API for GRC tools (Vanta, Drata, Secureframe…) and scripts.
@@ -275,6 +276,46 @@ export async function handleV1(db: Db, orgId: string, path: string[], q: URLSear
 					};
 			}
 			return paginate((await listReviews(db, orgId)).map(reviewJson), q);
+		}
+		case 'reconciliations': {
+			const runJson = (r: Reconciliation) => ({
+				id: r.id,
+				resource: { id: r.resource.id, name: r.resource.name },
+				source: r.source,
+				filename: r.filename || null,
+				run_by: r.runBy ? { id: r.runBy.id, email: r.runBy.email, name: r.runBy.name } : null,
+				created_at: r.createdAt,
+				counts: r.counts,
+				unresolved: r.unresolved
+			});
+			if (id) {
+				const run = await getReconciliation(db, orgId, id).catch(() => null);
+				if (!run) return fail(404, 'Reconciliation not found');
+				const items = await reconciliationItems(db, orgId, run.id);
+				return {
+					status: 200,
+					body: {
+						data: {
+							...runJson(run),
+							items: items.map((i) => ({
+								id: i.id,
+								account: i.account,
+								user: i.user ? { id: i.user.id, email: i.user.email, name: i.user.name, member_status: i.user.member } : null,
+								status: i.status,
+								level: i.level || null,
+								detail: i.detail || null,
+								resolution: i.resolution,
+								resolved_by: i.resolvedBy,
+								resolved_at: i.resolvedAt,
+								note: i.note || null
+							}))
+						}
+					}
+				};
+			}
+			const r = range(q);
+			if ('status' in r) return r;
+			return paginate((await listReconciliations(db, orgId, { from: r.from, to: r.to, resourceId: q.get('resource_id') ?? undefined })).map(runJson), q);
 		}
 		case 'events': {
 			const r = range(q);

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import { Plug, ShieldAlert, GripVertical, Plus, Trash2, LoaderCircle, Webhook, Hand, Copy, ArrowUp, ArrowDown } from '@lucide/svelte';
+	import { ShieldAlert, GripVertical, Plus, Trash2, LoaderCircle, Webhook, Hand, Copy, ArrowUp, ArrowDown } from '@lucide/svelte';
 	import PeoplePicker from './PeoplePicker.svelte';
 	import ResourceIcon from './ResourceIcon.svelte';
+	import BrandLogo from './BrandLogo.svelte';
 	import Switch from './Switch.svelte';
 	import { api, errorMessage, wentForApproval } from '#lib/client/api.ts';
 	import { INTEGRATIONS, TARGET_KINDS } from '#lib/integrations.ts';
@@ -261,7 +262,7 @@
 					{#each integrations as k (k)}
 						<label class="flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-[0.8125rem] {f.fulfillment === 'integration' && f.integration === k ? 'border-primary/60 bg-primary-soft' : 'border-border hover:bg-accent/50'}">
 							<input type="radio" class="mt-0.5 accent-[var(--primary)]" name="integration" checked={f.fulfillment === 'integration' && f.integration === k} onchange={() => useIntegration(k)} />
-							<span><span class="flex items-center gap-1.5 font-medium"><Plug class="size-3.5" />{INTEGRATIONS[k as IntegrationKind].name}</span><span class="block text-xs text-muted-foreground">{INTEGRATIONS[k as IntegrationKind].summary}</span></span>
+							<span><span class="flex items-center gap-1.5 font-medium"><BrandLogo brand={k as IntegrationKind} class="size-3.5" />{INTEGRATIONS[k as IntegrationKind].name}</span><span class="block text-xs text-muted-foreground">{INTEGRATIONS[k as IntegrationKind].summary}</span></span>
 						</label>
 					{/each}
 				</div>

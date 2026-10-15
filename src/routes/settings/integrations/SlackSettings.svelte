@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { page } from '$app/state';
 	import { Copy, LoaderCircle, ExternalLink } from '@lucide/svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
 	import { confirmAction, toast } from '#lib/client/state.svelte.ts';
@@ -12,10 +11,6 @@
 	let manifestUrl = $state('');
 	let manifestJson = $state('');
 
-	$effect(() => {
-		const msg = page.url.searchParams.get('slack');
-		if (msg) toast(msg === 'connected' ? 'success' : 'error', msg === 'connected' ? 'Slack connected' : 'Slack didn’t connect', msg === 'connected' ? undefined : msg);
-	});
 	$effect(() => {
 		if (shared) return;
 		api.get<object>('/api/settings/slack').then((m) => {

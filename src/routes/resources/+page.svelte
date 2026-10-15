@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { Boxes, Plus, Webhook, Hand, EyeOff, Search, ScanSearch, Plug } from '@lucide/svelte';
+	import { Boxes, Plus, Webhook, Hand, EyeOff, Search, ScanSearch } from '@lucide/svelte';
 	import { INTEGRATIONS } from '#lib/integrations.ts';
+	import BrandLogo from '#lib/components/BrandLogo.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import ResourceIcon from '#lib/components/ResourceIcon.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
@@ -63,7 +64,7 @@
 							</td>
 							<td class="px-4 py-2.5 text-xs text-muted-foreground">{r.roles.map((x) => x.name).join(', ')}</td>
 							<td class="px-4 py-2.5 text-xs">{APPROVAL_LABEL[r.approval]}<span class="block text-muted-foreground">{r.maxDays ? `max ${duration(r.maxDays).toLowerCase()}` : 'no time limit'}</span></td>
-							<td class="px-4 py-2.5 text-xs text-muted-foreground"><span class="flex items-center gap-1.5">{#if r.fulfillment === 'webhook'}<Webhook class="size-3.5" />Webhook{:else if r.fulfillment === 'integration' && r.integration}<Plug class="size-3.5" />{INTEGRATIONS[r.integration].name}{:else}<Hand class="size-3.5" />By hand{/if}</span></td>
+							<td class="px-4 py-2.5 text-xs text-muted-foreground"><span class="flex items-center gap-1.5">{#if r.fulfillment === 'webhook'}<Webhook class="size-3.5" />Webhook{:else if r.fulfillment === 'integration' && r.integration}<BrandLogo brand={r.integration} class="size-3.5" />{INTEGRATIONS[r.integration].name}{:else}<Hand class="size-3.5" />By hand{/if}</span></td>
 							<td class="px-4 py-2.5 text-xs">{#if owner}<span class="flex items-center gap-1.5"><Avatar user={owner} size="size-5" />{displayName(owner)}</span>{:else}<span class="text-muted-foreground">—</span>{/if}</td>
 							<td class="px-4 py-2.5 text-right font-mono text-xs tabular-nums">
 								{data.grants[r.id] ?? 0}

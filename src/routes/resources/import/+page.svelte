@@ -6,6 +6,7 @@
 	import { api, errorMessage } from '#lib/client/api.ts';
 	import { toast } from '#lib/client/state.svelte.ts';
 	import { INTEGRATIONS } from '#lib/integrations.ts';
+	import BrandLogo from '#lib/components/BrandLogo.svelte';
 	import type { DiscoveredApp } from '#lib/types.ts';
 	import type { PageProps } from './$types';
 
@@ -93,7 +94,7 @@
 		{#if data.kinds.length > 1}
 			<div class="flex gap-1" role="tablist" aria-label="Identity provider">
 				{#each data.kinds as k (k)}
-					<button role="tab" aria-selected={kind === k} class="btn btn-sm {kind === k ? 'btn-secondary' : 'btn-ghost'}" onclick={() => (picked = k)}>{INTEGRATIONS[k].name}</button>
+					<button role="tab" aria-selected={kind === k} class="btn btn-sm {kind === k ? 'btn-secondary' : 'btn-ghost'}" onclick={() => (picked = k)}><BrandLogo brand={k} class="size-3.5" />{INTEGRATIONS[k].name}</button>
 				{/each}
 			</div>
 		{/if}

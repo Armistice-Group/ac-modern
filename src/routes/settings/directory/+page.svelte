@@ -7,6 +7,7 @@
 	import { GOOGLE_DIRECTORY_SCOPES, GOOGLE_LINKS, GOOGLE_PROVISIONING_SCOPES } from '#lib/google.ts';
 	import { confirmAction, toast } from '#lib/client/state.svelte.ts';
 	import { ago, dateTime } from '#lib/format.ts';
+	import BrandLogo, { isBrand } from '#lib/components/BrandLogo.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -114,7 +115,7 @@
 			{#each KINDS as k (k.kind)}
 				<label class="flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-[0.8125rem] transition-colors {kind === k.kind ? 'border-primary/60 bg-primary-soft' : 'border-border hover:bg-accent/50'}">
 					<input type="radio" class="mt-0.5 accent-[var(--primary)]" value={k.kind} bind:group={kind} />
-					<span><span class="block font-medium">{k.name}</span><span class="block text-xs text-muted-foreground">{k.detail}</span></span>
+					<span><span class="flex items-center gap-1.5 font-medium">{#if isBrand(k.kind)}<BrandLogo brand={k.kind} class="size-3.5" />{:else}<Users class="size-3.5" />{/if}{k.name}</span><span class="block text-xs text-muted-foreground">{k.detail}</span></span>
 				</label>
 			{/each}
 		</div>
@@ -123,7 +124,7 @@
 			{#if kind === 'scim'}
 				<div class="flex flex-wrap gap-1" role="tablist" aria-label="Identity provider">
 					{#each SCIM_IDPS as idp (idp.key)}
-						<button type="button" role="tab" aria-selected={scimIdp === idp.key} class="btn btn-sm {scimIdp === idp.key ? 'btn-secondary' : 'btn-ghost'}" onclick={() => (scimIdp = idp.key)}>{idp.name}</button>
+						<button type="button" role="tab" aria-selected={scimIdp === idp.key} class="btn btn-sm {scimIdp === idp.key ? 'btn-secondary' : 'btn-ghost'}" onclick={() => (scimIdp = idp.key)}>{#if isBrand(idp.key)}<BrandLogo brand={idp.key} class="size-3.5" />{/if}{idp.name}</button>
 					{/each}
 				</div>
 				<ol class="list-decimal space-y-1.5 pl-5 text-xs text-muted-foreground">

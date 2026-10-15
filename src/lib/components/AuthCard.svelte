@@ -63,7 +63,7 @@
 		</div>
 
 		{#if sso}
-			<a class="btn btn-primary h-9 w-full" href={sso.href} data-sveltekit-reload>{#if sso.brand}<span class="grid size-5 place-items-center rounded-md bg-white text-black"><BrandLogo brand={sso.brand} class="size-3.5" /></span>{:else}<KeyRound />{/if}Continue with {sso.name}</a>
+			<a class="btn btn-primary h-9 w-full" href={sso.href} data-sveltekit-reload>{#if sso.brand}<BrandLogo brand={sso.brand} class="size-4" />{:else}<KeyRound />{/if}Continue with {sso.name}</a>
 			{#if showForm}
 				<div class="my-5 flex items-center gap-3 text-[0.6875rem] text-muted-foreground">
 					<span class="h-px flex-1 bg-border"></span>or<span class="h-px flex-1 bg-border"></span>

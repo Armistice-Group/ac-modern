@@ -4,9 +4,9 @@ import { EXCEPTIONS, evidenceRows, ticket, type EvidenceRow } from './evidence.t
 import { listEvents } from './events.ts';
 import { listGrants } from './grants.ts';
 import { listResources } from './resources.ts';
-import { getReview, listReviews, reviewItems } from './reviews.ts';
+import { describePolicy, getReview, listPolicies, listReviews, reviewItems } from './reviews.ts';
 import { describeRule, listRules } from './rules.ts';
-import type { GrantStatus, RequestCategory } from '#lib/types.ts';
+import type { GrantStatus, RequestCategory, Review } from '#lib/types.ts';
 
 /**
  * The read-only REST API for GRC tools (Vanta, Drata, Secureframe…) and scripts.
@@ -210,36 +210,71 @@ export async function handleV1(db: Db, orgId: string, path: string[], q: URLSear
 			const rows = await evidenceRows(db, orgId, { from: r.from, to: r.to, categories: types, privileged: q.get('privileged') === 'true', exceptions: q.get('exceptions') === 'true' });
 			return paginate(rows.map(requestJson), q);
 		}
+		case 'review-policies': {
+			const rows = [];
+			for (const p of await listPolicies(db, orgId))
+				rows.push({
+					id: p.id,
+					name: p.name,
+					enabled: p.enabled,
+					description: await describePolicy(db, orgId, p),
+					frequency: p.frequency,
+					scope: p.scope,
+					resource_ids: p.resourceIds,
+					reviewer: p.reviewer,
+					due_days: p.dueDays,
+					next_run_at: p.nextRunAt,
+					last_run_at: p.lastRunAt
+				});
+			return paginate(rows, q);
+		}
 		case 'reviews': {
+			const reviewJson = (v: Review) => ({
+				id: v.id,
+				name: v.name,
+				status: v.status,
+				policy: v.policyId ? { id: v.policyId, name: v.policyName } : null,
+				scope: v.scope.scope ?? 'all',
+				reviewer: v.scope.reviewer ?? 'owner',
+				due_at: v.dueAt,
+				created_at: v.createdAt,
+				closed_at: v.closedAt,
+				total: v.total,
+				decided: v.decided,
+				revoked: v.revoked,
+				removed: v.removed,
+				closed_late: !!(v.closedAt && v.dueAt && v.closedAt > v.dueAt)
+			});
 			if (id) {
 				const review = await getReview(db, orgId, id).catch(() => null);
 				if (!review) return fail(404, 'Review not found');
 				const items = await reviewItems(db, orgId, id);
-				const reviewJson = { id: review.id, name: review.name, status: review.status, due_at: review.dueAt, created_at: review.createdAt, closed_at: review.closedAt, total: review.total, decided: review.decided, revoked: review.revoked };
 				if (sub === 'items' || !sub)
 					return {
 						status: 200,
 						body: {
 							data: {
-								...reviewJson,
+								...reviewJson(review),
 								items: items.map((i) => ({
 									id: i.id,
 									user: person(i.grant.user),
 									resource: { id: i.grant.resource.id, name: i.grant.resource.name },
 									access_level: { id: i.grant.role.id, name: i.grant.role.name },
+									privileged: i.privileged,
+									granted_at: i.grant.grantedAt,
 									reviewer: i.reviewerId ? { id: i.reviewerId, name: i.reviewerName } : null,
+									reviewer_capacity: i.capacity || null,
 									decision: i.decision,
+									decided_by: i.decidedBy,
 									note: i.note,
-									decided_at: i.decidedAt
+									decided_at: i.decidedAt,
+									removal: i.removal ? { request_number: i.removal.number, status: i.removal.status, completed_at: i.removal.status === 'completed' ? i.removal.closedAt : null } : null
 								}))
 							}
 						}
 					};
 			}
-			return paginate(
-				(await listReviews(db, orgId)).map((v) => ({ id: v.id, name: v.name, status: v.status, due_at: v.dueAt, created_at: v.createdAt, closed_at: v.closedAt, total: v.total, decided: v.decided, revoked: v.revoked })),
-				q
-			);
+			return paginate((await listReviews(db, orgId)).map(reviewJson), q);
 		}
 		case 'events': {
 			const r = range(q);

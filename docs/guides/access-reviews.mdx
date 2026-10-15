@@ -1,6 +1,6 @@
 ---
 title: Access reviews
-description: Periodic campaigns where system owners confirm who should still have access.
+description: Periodic reviews, on a schedule, where owners or managers confirm who should still have access.
 icon: clipboard-check
 ---
 
@@ -8,20 +8,59 @@ icon: clipboard-check
   <img src="/screenshots/review.png" alt="An access review in progress" />
 </Frame>
 
-<Steps>
-  <Step title="Start a review">
-    **Reviews → Start a review** (admins). Name it (*"Q3 2026 access review"*), set a due date, and pick resources, or leave them all unticked to review everything.
-  </Step>
-  <Step title="Reviewers decide">
-    Every active grant on those resources becomes an item, assigned to the resource's owner (else its first approver, else whoever started the review). Nobody reviews their own access: those items go to whoever started the review. Reviewers are notified and see a badge on **Reviews**.
+An access review asks someone accountable to **keep** or **revoke** every grant in scope. Revoking opens a removal, and the review records when that removal was done. Run them by hand, or set **review policies** so they start on their own, for example quarterly for everything and monthly for privileged access.
 
-    Each item is **Keep** or **Revoke**. **Keep all undecided** handles a resource in one click. Revoking opens a removal with the reason *Access review*.
-  </Step>
-  <Step title="Close and export">
-    **Close review** when you're done; undecided items are left as they are. **Export evidence** downloads every item with its reviewer, decision and time.
-  </Step>
-</Steps>
+## Review policies
+
+**Reviews → Review policies → New policy** (admins). A common setup is two policies: *Quarterly, all access* and *Monthly, privileged access*, both offered as one-click presets.
+
+| Setting | Options |
+|---|---|
+| **How often** | Monthly, quarterly, every six months, yearly |
+| **First review** | The date the first one starts; later ones follow on the same day of the month |
+| **Days to finish** | The due date, counted from the start |
+| **What** | All access, or only privileged access levels |
+| **Systems** | Some, or all (including systems added later) |
+| **Reviewed by** | System owners, or each person's manager (falling back to the system owner) |
+
+Each review is named after its policy and period, for example *Quarterly access review: Q4 2026*. **Start now** (▶) runs a policy's review immediately without moving its schedule. If the server was down over a scheduled date, one review starts when it's back, not one per missed period. If nothing is in scope, the run is skipped and logged.
+
+Creating, changing, pausing and deleting policies is in the audit log, and these changes appear under **Control changes** in the [audit evidence](/compliance/audit-evidence).
+
+## Who reviews what
+
+Each grant goes to the first of these who is active and isn't the person holding the access:
+
+1. Their **manager**, if the review is by managers
+2. The system's **owner**
+3. The system's **approvers**
+4. Whoever started the review, then an **admin**
+
+So nobody reviews their own access. Each item records the reviewer's capacity (*manager*, *system owner*, *designated approver*, *admin*).
+
+## Reminders and escalation
+
+- **Before it's due:** reviewers with undecided items get a reminder three days before the due date.
+- **Once it's late:** reviewers get an overdue notice, and admins get a summary of who's behind, every week until the review is done. Each escalation is in the audit log.
+- **Reassign:** on the review, admins see each reviewer's progress and can hand someone's undecided items to another person, for example when an owner is away or has left.
+
+## Deciding
+
+Each item is **Keep** or **Revoke**. **Keep all undecided** handles a system in one click. Revoking opens a removal with the reason *Access review*. If a removal was already under way (for example from offboarding), the review links to that one. Access that was removed during the review shows *Removed since* and needs no decision.
+
+## Evidence
+
+**Export evidence** downloads every item, and the export itself is logged. Each item includes:
+
+- the person, system, access level and whether it's privileged
+- when access was granted, and how (requested, recorded, detected in your IdP)
+- the reviewer and their capacity, the decision, who made it, when, and whether it was on time
+- for revokes: the removal request, its status, and when access was actually removed
+
+Each review card shows how many were revoked and how many removals are done. In the API, `GET /api/v1/reviews`, `/reviews/{id}` and `/review-policies` return the same records.
+
+**Close review** when you're done. Undecided items are left as they are, and closing after the due date is recorded as late.
 
 <Tip>
-  Quarterly reviews are common, and SOC 2 and ISO 27001 auditors usually ask for them. Reviews include access recorded by hand and access detected from IdP groups, not just access requested through ac·modern.
+  Auditors (SOC 2 CC6.2/CC6.3, ISO 27001 A.5.18) usually look for: a policy saying how often reviews happen, evidence that each one happened on schedule, who reviewed, and that revoked access was actually removed. Review policies, the export and the removal links cover all four. Reviews include access recorded by hand and access detected from IdP groups, not just access requested through ac·modern.
 </Tip>

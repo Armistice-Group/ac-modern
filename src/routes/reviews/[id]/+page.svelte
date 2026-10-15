@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Check, X, Lock, Download } from '@lucide/svelte';
+	import { Check, X, Lock, Download, UserRoundCog, ShieldAlert } from '@lucide/svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import ResourceIcon from '#lib/components/ResourceIcon.svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
@@ -63,23 +63,45 @@
 		}
 	}
 
-	function exportCsv() {
-		const rows = [['resource', 'access level', 'person', 'email', 'reviewer', 'decision', 'decided at', 'note']];
-		for (const i of data.items) rows.push([i.grant.resource.name, i.grant.role.name, i.grant.user.name, i.grant.user.email, i.reviewerName ?? '', i.decision ?? 'undecided', i.decidedAt ?? '', i.note]);
-		const csv = rows.map((r) => r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n');
-		const a = document.createElement('a');
-		a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-		a.download = `${data.review.name.replace(/\W+/g, '-').toLowerCase()}.csv`;
-		a.click();
+	const CAP: Record<string, string> = { owner: 'owner', approver: 'approver', manager: 'manager', admin: 'admin', '': '' };
+
+	// Progress per reviewer, for chasing and reassigning.
+	const reviewers = $derived.by(() => {
+		const m = new Map<string, { id: string; name: string; total: number; left: number }>();
+		for (const i of data.items) {
+			if (!i.reviewerId) continue;
+			const r = m.get(i.reviewerId) ?? { id: i.reviewerId, name: i.reviewerName ?? '—', total: 0, left: 0 };
+			r.total++;
+			if (!i.decision && i.grant.status !== 'revoked') r.left++;
+			m.set(i.reviewerId, r);
+		}
+		return [...m.values()].sort((a, b) => b.left - a.left);
+	});
+	let reassigning = $state<string | null>(null);
+	let reassignTo = $state('');
+	async function reassign(from: string) {
+		if (!reassignTo) return;
+		try {
+			const r = await api.post<{ count: number }>(`/api/reviews/${data.review.id}/reassign`, { from, to: reassignTo });
+			toast('success', `Reassigned ${r.count} ${r.count === 1 ? 'item' : 'items'}`);
+			reassigning = null;
+			reassignTo = '';
+			await invalidateAll();
+		} catch (err) {
+			toast('error', 'Couldn’t reassign', errorMessage(err));
+		}
 	}
 </script>
 
 <svelte:head><title>{data.review.name} · ac·modern</title></svelte:head>
 
-<PageHeader title={data.review.name} description={open ? (data.review.dueAt ? `Due ${date(data.review.dueAt)}` : 'Open') : `Closed ${date(data.review.closedAt)}`}>
+<PageHeader
+	title={data.review.name}
+	description={`${open ? (data.review.dueAt ? `Due ${date(data.review.dueAt)}` : 'Open') : `Closed ${date(data.review.closedAt)}`}${data.review.policyName ? ` · started by the “${data.review.policyName}” policy` : ''}${data.review.scope.scope === 'privileged' ? ' · privileged access only' : ''}${data.review.scope.reviewer === 'manager' ? ' · reviewed by managers' : ''}`}
+>
 	{#snippet actions()}
 		{#if data.admin}
-			<button class="btn btn-ghost" onclick={exportCsv}><Download />Export evidence</button>
+			<a class="btn btn-ghost" href="/api/reviews/{data.review.id}/export" data-sveltekit-reload><Download />Export evidence</a>
 			{#if open}<button class="btn btn-secondary" onclick={close}><Lock />Close review</button>{/if}
 		{/if}
 	{/snippet}
@@ -102,6 +124,32 @@
 		</div>
 	</div>
 
+	{#if data.admin && reviewers.length > 1}
+		<section class="card mb-5 p-4">
+			<h2 class="mb-2 text-[0.8125rem] font-semibold">Reviewers</h2>
+			<ul class="divide-y divide-border">
+				{#each reviewers as r (r.id)}
+					<li class="flex flex-wrap items-center gap-3 py-2 text-[0.8125rem]">
+						<span class="flex-1">{r.name}</span>
+						<span class="font-mono text-xs text-muted-foreground tabular-nums">{r.total - r.left}/{r.total}</span>
+						{#if r.left === 0}<span class="badge badge-success"><Check />Done</span>{:else}<span class="badge {open && data.review.dueAt && Date.parse(data.review.dueAt) < Date.now() ? 'badge-danger' : 'badge-warning'}">{r.left} left</span>{/if}
+						{#if open && r.left}
+							{#if reassigning === r.id}
+								<select class="input h-8 w-48 text-xs" bind:value={reassignTo}>
+									<option value="">Reassign to…</option>
+									{#each data.people.filter((p) => p.id !== r.id) as p (p.id)}<option value={p.id}>{p.name || p.email}</option>{/each}
+								</select>
+								<button class="btn btn-secondary btn-sm" disabled={!reassignTo} onclick={() => reassign(r.id)}>Reassign</button>
+							{:else}
+								<button class="btn btn-ghost btn-sm" onclick={() => ((reassigning = r.id), (reassignTo = ''))}><UserRoundCog />Reassign</button>
+							{/if}
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
 	{#each groups as g (g.name)}
 		<section class="card mb-4 overflow-hidden">
 			<header class="flex items-center gap-2.5 border-b border-border px-4 py-2.5">
@@ -115,14 +163,24 @@
 					<li class="flex flex-wrap items-center gap-3 px-4 py-2.5">
 						<Avatar user={i.grant.user} size="size-7" />
 						<div class="min-w-0 flex-1">
-							<p class="truncate text-[0.8125rem] font-medium">{displayName(i.grant.user)} <span class="font-normal text-muted-foreground">· {i.grant.role.name}</span></p>
-							<p class="truncate text-xs text-muted-foreground">Since {date(i.grant.grantedAt)}{i.grant.expiresAt ? `, until ${date(i.grant.expiresAt)}` : ''} · reviewer {i.reviewerName ?? '—'}</p>
+							<p class="truncate text-[0.8125rem] font-medium">
+								{displayName(i.grant.user)} <span class="font-normal text-muted-foreground">· {i.grant.role.name}</span>
+								{#if i.privileged}<span class="badge badge-warning ml-1"><ShieldAlert />Privileged</span>{/if}
+							</p>
+							<p class="truncate text-xs text-muted-foreground">
+								Since {date(i.grant.grantedAt)}{i.grant.expiresAt ? `, until ${date(i.grant.expiresAt)}` : ''} · reviewer {i.reviewerName ?? '—'}{i.capacity ? ` (${CAP[i.capacity]})` : ''}{i.decidedBy && i.decidedBy !== i.reviewerName ? ` · decided by ${i.decidedBy}` : ''}
+								{#if i.removal}
+									· removal <a class="text-primary hover:underline" href="/requests/{i.removal.number}">#{i.removal.number}</a> {i.removal.status === 'completed' ? `done ${date(i.removal.closedAt)}` : i.removal.status === 'cancelled' ? 'called off' : 'pending'}
+								{/if}
+							</p>
 						</div>
 						{#if i.decision === 'keep'}
 							<span class="badge badge-success"><Check />Kept</span>
 							{#if open && mine}<button class="btn btn-ghost btn-sm" disabled={busy === i.id} onclick={() => decide(i, 'revoke')}>Revoke instead</button>{/if}
 						{:else if i.decision === 'revoke'}
 							<span class="badge badge-danger"><X />Revoked</span>
+						{:else if i.grant.status === 'revoked'}
+							<span class="badge">Removed since</span>
 						{:else if open && mine}
 							<button class="btn btn-secondary btn-sm" disabled={busy === i.id} onclick={() => decide(i, 'keep')}><Check />Keep</button>
 							<button class="btn btn-danger-outline btn-sm" disabled={busy === i.id} onclick={() => decide(i, 'revoke')}><X />Revoke</button>

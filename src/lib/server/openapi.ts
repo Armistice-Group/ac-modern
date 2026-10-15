@@ -49,8 +49,9 @@ export function openapi(origin: string) {
 					responses: { '200': { description: 'OK' }, '404': { description: 'Not found' } }
 				}
 			},
-			'/reviews': get('Access review campaigns', { type: 'object' }, page),
-			'/reviews/{id}': { get: { summary: 'A review with every item and decision', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { '200': { description: 'OK' } } } },
+			'/review-policies': get('Review policies: reviews that start on a schedule (monthly, quarterly…)', { type: 'object' }, page),
+			'/reviews': get('Access review campaigns: policy, scope, due and closed dates, decided, revoked and removed counts', { type: 'object' }, page),
+			'/reviews/{id}': { get: { summary: 'A review with every item: reviewer and capacity, decision, and whether a revoke was carried out', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { '200': { description: 'OK' } } } },
 			'/events': get('The audit log', list('Event'), [...period, { name: 'action', in: 'query', schema: { type: 'string' }, description: 'e.g. request, grant.created' }, ...page])
 		},
 		components: {

@@ -1,7 +1,7 @@
 import { db } from '#lib/server/db.ts';
 import { ctx, isAdmin } from '#lib/server/http.ts';
 import { listResources } from '#lib/server/resources.ts';
-import { listReviews } from '#lib/server/reviews.ts';
+import { describePolicy, listPolicies, listReviews } from '#lib/server/reviews.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -15,10 +15,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 		[c.org.id, c.user.id]
 	);
 	const assigned = Object.fromEntries(mine.map((m) => [m.review_id, Number(m.n)]));
+	const policies = [];
+	if (admin)
+		for (const p of await listPolicies(d, c.org.id)) {
+			const last = all.find((r) => r.policyId === p.id);
+			policies.push({ ...p, description: await describePolicy(d, c.org.id, p), last: last ? { id: last.id, name: last.name, status: last.status, decided: last.decided, total: last.total, dueAt: last.dueAt } : null });
+		}
 	return {
 		admin,
 		reviews: admin ? all : all.filter((r) => r.id in assigned),
 		assigned,
-		resources: admin ? (await listResources(d, c.org.id)).map((r) => ({ id: r.id, name: r.name, color: r.color })) : []
+		policies,
+		resources: admin ? (await listResources(d, c.org.id)).filter((r) => !r.archived).map((r) => ({ id: r.id, name: r.name, color: r.color })) : []
 	};
 };

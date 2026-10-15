@@ -160,6 +160,31 @@ export interface Event {
 	data: Record<string, unknown>;
 }
 
+export type ReviewFrequency = 'monthly' | 'quarterly' | 'semiannual' | 'annual';
+/** Who reviews each grant: the system's owner, or the person's manager (falling back to the owner). */
+export type ReviewerMode = 'owner' | 'manager';
+/** In what role someone was asked to review an item. */
+export type ReviewerCapacity = 'owner' | 'approver' | 'manager' | 'admin' | '';
+
+/** A review policy: a review that starts by itself on a schedule. */
+export interface ReviewPolicy {
+	id: string;
+	name: string;
+	enabled: boolean;
+	frequency: ReviewFrequency;
+	/** Every grant, or only privileged access levels. */
+	scope: 'all' | 'privileged';
+	/** Systems it covers (empty: all). */
+	resourceIds: string[];
+	reviewer: ReviewerMode;
+	/** Reviewers get this many days to finish. */
+	dueDays: number;
+	nextRunAt: string;
+	lastRunAt: string | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface Review {
 	id: string;
 	name: string;
@@ -167,19 +192,31 @@ export interface Review {
 	dueAt: string | null;
 	createdAt: string;
 	closedAt: string | null;
+	/** The policy that started it, if any. */
+	policyId: string | null;
+	policyName: string | null;
+	/** What it covered, as set when it started. */
+	scope: { scope?: 'all' | 'privileged'; resourceIds?: string[]; reviewer?: ReviewerMode; frequency?: ReviewFrequency };
 	total: number;
 	decided: number;
 	revoked: number;
+	/** Revoked items whose removal is done. */
+	removed: number;
 }
 
 export interface ReviewItem {
 	id: string;
 	grant: Grant;
+	privileged: boolean;
 	reviewerId: string | null;
 	reviewerName: string | null;
+	capacity: ReviewerCapacity;
 	decision: 'keep' | 'revoke' | null;
 	note: string;
 	decidedAt: string | null;
+	decidedBy: string | null;
+	/** The removal a revoke opened, and whether it's done. */
+	removal: { number: number; status: RequestStatus; closedAt: string | null } | null;
 }
 
 /** A member's token for MCP clients. */

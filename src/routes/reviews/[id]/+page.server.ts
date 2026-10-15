@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { listPeople } from '#lib/server/accounts.ts';
 import { db } from '#lib/server/db.ts';
 import { ctx, isAdmin } from '#lib/server/http.ts';
 import { getReview, reviewItems } from '#lib/server/reviews.ts';
@@ -12,5 +13,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const items = await reviewItems(d, c.org.id, review.id);
 	const visible = admin ? items : items.filter((i) => i.reviewerId === c.user.id);
 	if (!visible.length && !admin) error(404, 'That review doesn’t exist');
-	return { review, items: visible, admin };
+	const people = admin ? (await listPeople(d, c.org.id)).filter((p) => p.status === 'active').map((p) => ({ id: p.id, name: p.name, email: p.email })) : [];
+	return { review, items: visible, admin, people };
 };

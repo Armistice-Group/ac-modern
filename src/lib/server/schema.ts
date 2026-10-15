@@ -417,5 +417,32 @@ CREATE TABLE slack_messages (
 	PRIMARY KEY (channel, ts)
 );
 CREATE INDEX slack_messages_request ON slack_messages(request_id)
+`,
+	// Review policies (scheduled reviews), reminders, reviewer capacity, and the removal a revoke opened.
+	`
+CREATE TABLE review_policies (
+	id TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	name TEXT NOT NULL,
+	enabled INTEGER NOT NULL DEFAULT 1,
+	frequency TEXT NOT NULL,
+	scope TEXT NOT NULL DEFAULT 'all',
+	resource_ids TEXT NOT NULL DEFAULT '[]',
+	reviewer TEXT NOT NULL DEFAULT 'owner',
+	due_days INTEGER NOT NULL DEFAULT 14,
+	next_run_at TEXT NOT NULL,
+	last_run_at TEXT,
+	created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+CREATE INDEX review_policies_org ON review_policies(org_id);
+
+ALTER TABLE reviews ADD COLUMN policy_id TEXT REFERENCES review_policies(id) ON DELETE SET NULL;
+ALTER TABLE reviews ADD COLUMN scope TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE reviews ADD COLUMN reminded_at TEXT;
+ALTER TABLE reviews ADD COLUMN overdue_notified_at TEXT;
+ALTER TABLE review_items ADD COLUMN capacity TEXT NOT NULL DEFAULT '';
+ALTER TABLE review_items ADD COLUMN removal_request_id TEXT REFERENCES requests(id) ON DELETE SET NULL
 `
 ];

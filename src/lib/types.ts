@@ -231,6 +231,20 @@ export interface PersonalToken {
 	user: { id: string; name: string; email: string };
 }
 
+/** The result of recomputing the audit log's daily seals. */
+export interface Verification {
+	ok: boolean;
+	/** Days checked. */
+	days: number;
+	firstDay: string | null;
+	lastSealed: string | null;
+	/** Days whose events no longer match their seal, oldest first. */
+	broken: { day: string; reason: string }[];
+	/** Events after the last sealed day (sealed once their day ends). */
+	unsealed: number;
+	checkedAt: string;
+}
+
 /** An API error body: `{ message, hint? }`. */
 export interface ProblemInfo {
 	message: string;

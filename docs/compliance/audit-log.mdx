@@ -1,0 +1,91 @@
+---
+title: Audit log integrity
+description: Daily seals that show whether any event was changed, and streaming every event to a store you control.
+icon: shield-check
+---
+
+Every request, decision, grant, removal and setting change is in the **Audit log**. Auditors rely on it, so they'll ask how you know it hasn't been edited. ac·modern answers that in two ways: **daily seals** you can verify, and **streaming** a copy out as it happens.
+
+## Daily seals
+
+After each UTC day ends, ac·modern seals it: a SHA-256 digest over all of that day's events, in order, chained to the previous day's digest.
+
+```
+digest(day) = sha256( digest(previous day) + JSON of [id, at, actor_id, action, request_id, subject, summary, data] for each event, ordered by at, id )
+```
+
+The first day's previous digest is 64 zeros. Days with no events are sealed too, so a missing day shows.
+
+### Verify
+
+**Audit log → Integrity → Verify now** (admins) recomputes every sealed day and reports:
+
+| Finding | Means |
+|---|---|
+| *An event from this day was changed after it was sealed* | An event's content was edited |
+| *N events were sealed; there are now M* | An event was deleted, or one was added with a back-dated time |
+| *The chain of daily digests is broken here* | A seal itself was changed or removed |
+| *Events are dated before the first sealed day* | Something was inserted before the log began |
+
+Each verification is itself recorded (`audit.verified`), with its result.
+
+### Keep a copy of the seals
+
+Anyone who can write to the database could, in principle, rewrite both an event and every seal after it. What makes that detectable is a copy of the seals somewhere ac·modern can't change:
+
+- **Download seals** on the Audit log page (JSON), for example into your evidence folder each quarter
+- `GET /api/v1/audit-anchors` from your GRC tool or a script
+- Or stream the events themselves (below)
+
+To check a copy, recompute the digests from `GET /api/v1/events` and compare.
+
+## Streaming
+
+**Settings → General → Audit log** sends every event to an HTTPS endpoint you choose: a SIEM's HTTP collector (Datadog, Splunk HEC behind a small proxy, Elastic), a log bucket behind a function, or an n8n webhook.
+
+- Events are sent oldest first, in batches of up to 100, starting with the whole history.
+- Delivery resumes from where it stopped. If your endpoint is down or answers with an error, nothing is skipped: the same batch is retried on the next run, every few minutes, and the error is shown in settings and on the Audit log page.
+- **Send test** posts a signed request with no events.
+- Starting, changing and stopping the stream, and rotating its secret, are in the audit log.
+
+Each request is a `POST` with JSON:
+
+```json
+{
+  "org": { "id": "…" },
+  "events": [
+    {
+      "id": "…",
+      "at": "2026-10-14T09:12:03.120Z",
+      "actor": { "id": "…", "email": "sam@acme.com", "name": "Sam" },
+      "action": "request.approved",
+      "request_number": 42,
+      "subject": "AWS",
+      "summary": "Approved AWS (Admin) for Dev as system owner",
+      "data": { "step": 1, "capacity": "system_owner", "via": "web" }
+    }
+  ]
+}
+```
+
+### Verify the signature
+
+Requests carry `x-acm-timestamp` and `x-acm-signature: sha256=HMAC-SHA256(secret, "<timestamp>.<raw body>")`, the same scheme as [provisioning webhooks](/integrations/webhooks). The signing secret is shown once when you start the stream or rotate it.
+
+```js
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+function verify(req, rawBody, secret) {
+  const ts = req.headers['x-acm-timestamp'];
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false; // replayed
+  const want = `sha256=${createHmac('sha256', secret).update(`${ts}.${rawBody}`).digest('hex')}`;
+  const got = String(req.headers['x-acm-signature'] ?? '');
+  return got.length === want.length && timingSafeEqual(Buffer.from(got), Buffer.from(want));
+}
+```
+
+Answer with any `2xx` once you've stored the batch. Event ids are unique, so a receiver can safely ignore an event it has already seen.
+
+## Retention
+
+Events are kept for as long as the organisation exists; nothing deletes them. Back up the database (and, self-hosted, the `secret.key`) as described in [Backups](/self-hosting/backups).

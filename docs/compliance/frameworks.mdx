@@ -18,6 +18,9 @@ ac·modern doesn't make you compliant: your auditor tests your controls, not you
   <Accordion title="CC6.3: Changing and removing access, least privilege">
     Transfers request new access and remove old access together. Permission changes are their own request type. Privileged levels need the system owner. Time-limited access expires on its own. Periodic access reviews have exportable decisions.
   </Accordion>
+  <Accordion title="CC7.2: Monitoring, and the integrity of the audit trail">
+    Every access change and setting change is in the audit log. Each day is sealed with a chained SHA-256 digest that admins can verify at any time, the seals can be exported, and every event can be streamed to your SIEM or log store as it happens. See [Audit log integrity](/compliance/audit-log).
+  </Accordion>
 </AccordionGroup>
 
 ## ISO/IEC 27001:2022 Annex A
@@ -28,6 +31,7 @@ ac·modern doesn't make you compliant: your auditor tests your controls, not you
 | **A.5.16** Identity management | Directory sync from your IdP; offboarding when the IdP deactivates someone |
 | **A.5.17** Authentication information | Only partly: ac·modern delegates sign-in to your IdP with SSO. It doesn't manage passwords for other systems. |
 | **A.5.18** Access rights | Requests, approvals, setup, expiry, removal and periodic reviews, all recorded |
+| **A.8.15** Logging | Audit log of access and control changes, daily tamper-evident seals, streaming to your log store |
 | **A.8.2** Privileged access rights | Privileged levels, owner approval, short durations, privileged-only evidence |
 
 ## What auditors usually ask for
@@ -38,3 +42,4 @@ ac·modern doesn't make you compliant: your auditor tests your controls, not you
 - Terminated employees' access removal: offboarding removals in the population (type *Removal*, reason *Offboarding*)
 - Who can administer the tool itself: **ac·modern admin changes** on the evidence page
 - A description of the process: **Control description** on the evidence page
+- That the audit trail is complete and unaltered: **Audit log → Verify now**, the downloaded seals, or your streamed copy

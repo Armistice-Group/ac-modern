@@ -52,6 +52,7 @@ export function openapi(origin: string) {
 			'/review-policies': get('Review policies: reviews that start on a schedule (monthly, quarterly…)', { type: 'object' }, page),
 			'/reviews': get('Access review campaigns: policy, scope, due and closed dates, decided, revoked and removed counts', { type: 'object' }, page),
 			'/reviews/{id}': { get: { summary: 'A review with every item: reviewer and capacity, decision, and whether a revoke was carried out', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { '200': { description: 'OK' } } } },
+			'/audit-anchors': get('Daily digests of the audit log (SHA-256, chained). Keep a copy: recomputing them from /events shows whether any event was changed', list('AuditAnchor'), page),
 			'/events': get('The audit log', list('Event'), [...period, { name: 'action', in: 'query', schema: { type: 'string' }, description: 'e.g. request, grant.created' }, ...page])
 		},
 		components: {
@@ -103,6 +104,7 @@ export function openapi(origin: string) {
 						updated_at: { type: 'string' }
 					}
 				},
+				AuditAnchor: { type: 'object', properties: { day: { type: 'string' }, count: { type: 'integer' }, digest: { type: 'string' }, prev_digest: { type: 'string' }, sealed_at: { type: 'string' } } },
 				Event: { type: 'object', properties: { id: { type: 'string' }, at: { type: 'string' }, actor: person, action: { type: 'string' }, request_number: { type: ['integer', 'null'] }, summary: { type: 'string' } } }
 			}
 		}

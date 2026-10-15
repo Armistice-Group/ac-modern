@@ -466,5 +466,30 @@ CREATE TABLE pending_changes (
 	note TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX pending_changes_org ON pending_changes(org_id, status)
+`,
+	// Tamper evidence for the audit log (a digest per sealed day, chained) and streaming it out.
+	`
+CREATE TABLE audit_anchors (
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	day TEXT NOT NULL,
+	count INTEGER NOT NULL,
+	digest TEXT NOT NULL,
+	prev_digest TEXT NOT NULL,
+	created_at TEXT NOT NULL,
+	PRIMARY KEY (org_id, day)
+);
+
+CREATE TABLE audit_stream (
+	org_id TEXT PRIMARY KEY REFERENCES orgs(id) ON DELETE CASCADE,
+	url TEXT NOT NULL,
+	secret TEXT NOT NULL,
+	cursor_at TEXT,
+	cursor_id TEXT,
+	last_error TEXT NOT NULL DEFAULT '',
+	last_delivered_at TEXT,
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+CREATE INDEX events_org_at_id ON events(org_id, at, id)
 `
 ];

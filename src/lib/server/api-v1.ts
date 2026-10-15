@@ -1,4 +1,5 @@
 import { getOrg, listPeople, orgSettings } from './accounts.ts';
+import { listAnchors } from './audit.ts';
 import type { Db } from './db.ts';
 import { EXCEPTIONS, evidenceRows, ticket, type EvidenceRow } from './evidence.ts';
 import { listEvents } from './events.ts';
@@ -311,6 +312,10 @@ export async function handleV1(db: Db, orgId: string, path: string[], q: URLSear
 				})),
 				q
 			);
+		}
+		case 'audit-anchors': {
+			const anchors = await listAnchors(db, orgId);
+			return paginate(anchors.map((a) => ({ day: a.day, count: a.count, digest: a.digest, prev_digest: a.prevDigest, sealed_at: a.createdAt })), q);
 		}
 		case 'events': {
 			const r = range(q);

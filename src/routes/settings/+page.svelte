@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { LoaderCircle, Send, CircleCheck, CircleAlert } from '@lucide/svelte';
 	import Switch from '#lib/components/Switch.svelte';
+	import AuditStream from './AuditStream.svelte';
 	import { api, errorMessage, wentForApproval } from '#lib/client/api.ts';
 	import { toast } from '#lib/client/state.svelte.ts';
 	import { APPROVAL_LABEL } from '#lib/format.ts';
@@ -184,6 +185,8 @@
 			</form>
 		</div>
 	</section>
+
+	<AuditStream />
 
 	<p class="font-mono text-[0.6875rem] text-muted-foreground/70">{data.mode} · {data.database}</p>
 </div>

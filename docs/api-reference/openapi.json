@@ -400,9 +400,47 @@
 				}
 			}
 		},
+		"/review-policies": {
+			"get": {
+				"summary": "Review policies: reviews that start on a schedule (monthly, quarterly…)",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
 		"/reviews": {
 			"get": {
-				"summary": "Access review campaigns",
+				"summary": "Access review campaigns: policy, scope, due and closed dates, decided, revoked and removed counts",
 				"parameters": [
 					{
 						"name": "limit",
@@ -440,7 +478,7 @@
 		},
 		"/reviews/{id}": {
 			"get": {
-				"summary": "A review with every item and decision",
+				"summary": "A review with every item: reviewer and capacity, decision, and whether a revoke was carried out",
 				"parameters": [
 					{
 						"name": "id",
@@ -454,6 +492,59 @@
 				"responses": {
 					"200": {
 						"description": "OK"
+					}
+				}
+			}
+		},
+		"/audit-anchors": {
+			"get": {
+				"summary": "Daily digests of the audit log (SHA-256, chained). Keep a copy: recomputing them from /events shows whether any event was changed",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/AuditAnchor"
+											}
+										},
+										"next_cursor": {
+											"type": [
+												"string",
+												"null"
+											],
+											"description": "Pass as ?cursor= for the next page"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
 					}
 				}
 			}
@@ -964,6 +1055,26 @@
 						"type": "string"
 					},
 					"updated_at": {
+						"type": "string"
+					}
+				}
+			},
+			"AuditAnchor": {
+				"type": "object",
+				"properties": {
+					"day": {
+						"type": "string"
+					},
+					"count": {
+						"type": "integer"
+					},
+					"digest": {
+						"type": "string"
+					},
+					"prev_digest": {
+						"type": "string"
+					},
+					"sealed_at": {
 						"type": "string"
 					}
 				}

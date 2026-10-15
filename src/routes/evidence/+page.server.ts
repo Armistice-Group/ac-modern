@@ -5,6 +5,8 @@ import { adminCtx } from '#lib/server/http.ts';
 import { period } from '#lib/server/period.ts';
 import { listResources } from '#lib/server/resources.ts';
 import { describeRule, listRules } from '#lib/server/rules.ts';
+import { leavers } from '#lib/server/leavers.ts';
+import { describePolicy, listPolicies, listReviews } from '#lib/server/reviews.ts';
 import type { RequestCategory } from '#lib/types.ts';
 import type { PageServerLoad } from './$types';
 
@@ -38,12 +40,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			removals: all.filter((r) => r.request.kind === 'revoke').length
 		},
 		outside: await outOfProcess(d, c.org.id, p.from, p.to),
+		leavers: await leavers(d, c.org.id, p.from, p.to),
+		reviews: (await listReviews(d, c.org.id)).filter((r) => r.createdAt >= p.from && r.createdAt < p.to || (r.closedAt && r.closedAt >= p.from && r.closedAt < p.to)),
+		reviewPolicies: await (async () => {
+			const out: string[] = [];
+			for (const x of (await listPolicies(d, c.org.id)).filter((x) => x.enabled)) out.push(`“${x.name}” (${await describePolicy(d, c.org.id, x)})`);
+			return out;
+		})(),
 		control: {
 			resources: resources.length,
 			preApproved: resources.filter((r) => r.approval === 'none').map((r) => r.name),
 			privilegedLevels: resources.flatMap((r) => r.roles.filter((x) => x.privileged).map((x) => `${r.name} ${x.name}`)),
 			requirePrivilegedApproval: settings.requirePrivilegedApproval !== false,
 			allowAdminOverride: !!settings.allowAdminOverride,
+			requireSecondAdmin: !!settings.requireSecondAdmin,
 			autoRules: await (async () => {
 				const out: string[] = [];
 				for (const r of (await listRules(d, c.org.id)).filter((x) => x.enabled)) out.push(`“${r.name}” (${await describeRule(d, c.org.id, r)})`);

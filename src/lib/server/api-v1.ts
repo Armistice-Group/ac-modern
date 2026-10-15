@@ -6,6 +6,7 @@ import { listGrants } from './grants.ts';
 import { listResources } from './resources.ts';
 import { describePolicy, getReview, listPolicies, listReviews, reviewItems } from './reviews.ts';
 import { describeRule, listRules } from './rules.ts';
+import { leavers } from './leavers.ts';
 import type { GrantStatus, RequestCategory, Review } from '#lib/types.ts';
 
 /**
@@ -94,7 +95,15 @@ export async function handleV1(db: Db, orgId: string, path: string[], q: URLSear
 						id: org.id,
 						name: org.name,
 						slug: org.slug,
-						controls: { privileged_requires_owner_approval: s.requirePrivilegedApproval !== false, admin_override_allowed: !!s.allowAdminOverride, expiry_reminder_days: s.expiryReminderDays ?? 3 }
+						controls: {
+							privileged_requires_owner_approval: s.requirePrivilegedApproval !== false,
+							admin_override_allowed: !!s.allowAdminOverride,
+							expiry_reminder_days: s.expiryReminderDays ?? 3,
+							removal_target_hours: s.removalSlaHours ?? 24,
+							session_max_hours: s.sessionMaxHours ?? 720,
+							session_idle_minutes: s.sessionIdleMinutes ?? null,
+							control_changes_need_second_admin: !!s.requireSecondAdmin
+						}
 					}
 				}
 			};
@@ -164,7 +173,10 @@ export async function handleV1(db: Db, orgId: string, path: string[], q: URLSear
 		case 'access': {
 			const status = q.get('status') ?? 'active';
 			const statuses: GrantStatus[] = status === 'all' ? ['active', 'pending_revoke', 'revoked'] : ['active', 'pending_revoke'];
-			let grants = await listGrants(db, orgId, { statuses, resourceId: q.get('resource_id') ?? undefined });
+			const asOfRaw = q.get('as_of');
+			const asOf = asOfRaw ? Date.parse(asOfRaw.length === 10 ? `${asOfRaw}T23:59:59.999Z` : asOfRaw) : null;
+			if (asOf !== null && Number.isNaN(asOf)) return fail(400, 'as_of must be an ISO-8601 date');
+			let grants = await listGrants(db, orgId, { statuses, resourceId: q.get('resource_id') ?? undefined, asOf: asOf !== null ? new Date(asOf).toISOString() : undefined });
 			const email = q.get('user_email')?.toLowerCase();
 			if (email) grants = grants.filter((g) => g.user.email === email);
 			const privileged = new Set(
@@ -275,6 +287,30 @@ export async function handleV1(db: Db, orgId: string, path: string[], q: URLSear
 					};
 			}
 			return paginate((await listReviews(db, orgId)).map(reviewJson), q);
+		}
+		case 'leavers': {
+			const r = range(q);
+			if ('status' in r) return r;
+			const out = await leavers(db, orgId, r.from, r.to);
+			return paginate(
+				out.rows.map((x) => ({
+					user: { id: x.userId, email: x.email, name: x.name },
+					last_day: x.leftAt,
+					offboarded_at: x.at,
+					how: x.how,
+					by: x.by,
+					removals: x.removals,
+					removed: x.removed,
+					pending: x.pending,
+					last_removed_at: x.lastRemovedAt,
+					hours_to_remove: x.hours,
+					target_hours: out.slaHours,
+					on_time: x.onTime,
+					still_active: x.stillActive,
+					granted_after_leaving: x.grantedAfter
+				})),
+				q
+			);
 		}
 		case 'events': {
 			const r = range(q);

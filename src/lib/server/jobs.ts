@@ -6,6 +6,7 @@ import { syncDirectory } from './directory.ts';
 import { syncSeats } from './billing.ts';
 import { effects, flush } from './requests.ts';
 import { runReviewSchedule } from './reviews.ts';
+import { escalateRemovals } from './leavers.ts';
 
 let timer: ReturnType<typeof setInterval> | undefined;
 let running = false;
@@ -23,6 +24,7 @@ export async function runJobs() {
 				const settings = await orgSettings(d, o.id);
 				await sweepExpiry(d, o.id, settings.expiryReminderDays ?? 3, fx);
 				await runReviewSchedule(d, o.id, fx);
+				await escalateRemovals(d, o.id, fx);
 				// Pulled directories (Google, Okta, Microsoft) sync on a schedule; SCIM pushes.
 				const dir = await d.get<{ kind: string; last_sync_at: string | null }>('SELECT kind, last_sync_at FROM directory_sources WHERE org_id = ?', [o.id]);
 				if (dir && dir.kind !== 'scim' && (!dir.last_sync_at || Date.now() - Date.parse(dir.last_sync_at) > config.directorySyncMinutes * 60_000)) {

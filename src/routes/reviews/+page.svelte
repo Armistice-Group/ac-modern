@@ -7,7 +7,7 @@
 	import EmptyState from '#lib/components/EmptyState.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import ResourceIcon from '#lib/components/ResourceIcon.svelte';
-	import { api, errorMessage } from '#lib/client/api.ts';
+	import { api, errorMessage, wentForApproval } from '#lib/client/api.ts';
 	import { confirmAction, toast } from '#lib/client/state.svelte.ts';
 	import { date } from '#lib/format.ts';
 	import type { PageProps } from './$types';
@@ -54,9 +54,9 @@
 		busy = true;
 		try {
 			const { id, ...body } = policy;
-			if (id) await api.put(`/api/review-policies/${id}`, body);
-			else await api.post('/api/review-policies', body);
-			toast('success', id ? 'Policy saved' : 'Policy added', body.nextRunAt <= today() ? 'The first review starts within a few minutes.' : `The first review starts on ${body.nextRunAt}.`);
+			const r = id ? await api.put(`/api/review-policies/${id}`, body) : await api.post('/api/review-policies', body);
+			if (wentForApproval(r)) toast('success', 'Sent to another admin', 'The change applies once a second admin approves it (Settings → Changes).');
+			else toast('success', id ? 'Policy saved' : 'Policy added', body.nextRunAt <= today() ? 'The first review starts within a few minutes.' : `The first review starts on ${body.nextRunAt}.`);
 			editing = false;
 			await invalidateAll();
 		} catch (err) {
@@ -69,7 +69,8 @@
 	async function togglePolicy(p: Policy, enabled: boolean) {
 		const { id, description, last, lastRunAt, createdAt, updatedAt, ...rest } = p;
 		try {
-			await api.put(`/api/review-policies/${id}`, { ...rest, enabled });
+			const r = await api.put(`/api/review-policies/${id}`, { ...rest, enabled });
+			if (wentForApproval(r)) toast('success', 'Sent to another admin', 'It changes once a second admin approves it.');
 		} catch (err) {
 			toast('error', 'Couldn’t change the policy', errorMessage(err));
 		}
@@ -88,7 +89,8 @@
 
 	async function removePolicy(p: Policy) {
 		if (!(await confirmAction({ title: `Delete “${p.name}”?`, body: 'No more reviews start on this schedule. Reviews it already started stay, with their evidence.', danger: true, confirmLabel: 'Delete' }))) return;
-		await api.del(`/api/review-policies/${p.id}`);
+		const r = await api.del(`/api/review-policies/${p.id}`);
+		if (wentForApproval(r)) toast('success', 'Sent to another admin', 'It’s deleted once a second admin approves it.');
 		await invalidateAll();
 	}
 

@@ -3,7 +3,7 @@
 	import { LoaderCircle, Pencil, Plus, ShieldCheck, Trash2, Zap } from '@lucide/svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import Switch from '#lib/components/Switch.svelte';
-	import { api, errorMessage } from '#lib/client/api.ts';
+	import { api, errorMessage, wentForApproval } from '#lib/client/api.ts';
 	import { confirmAction, toast } from '#lib/client/state.svelte.ts';
 	import { ago, APPROVAL_LABEL } from '#lib/format.ts';
 	import type { PageProps } from './$types';
@@ -54,9 +54,9 @@
 		if (broad && !(await confirmAction({ title: 'Auto-approve everything?', body: 'This rule covers every non-privileged level of every system, for everyone. Requests will skip approval entirely.', confirmLabel: 'Save anyway', danger: true }))) return;
 		busy = true;
 		try {
-			if (draft.id) await api.put(`/api/settings/rules/${draft.id}`, payload(draft));
-			else await api.post('/api/settings/rules', payload(draft));
-			toast('success', draft.id ? 'Rule saved' : 'Rule added');
+			const r = draft.id ? await api.put(`/api/settings/rules/${draft.id}`, payload(draft)) : await api.post('/api/settings/rules', payload(draft));
+			if (wentForApproval(r)) toast('success', 'Sent to another admin', 'The rule applies once a second admin approves it (Settings → Changes).');
+			else toast('success', draft.id ? 'Rule saved' : 'Rule added');
 			editing = false;
 			await invalidateAll();
 		} catch (err) {
@@ -68,8 +68,9 @@
 
 	async function setEnabled(r: (typeof data.rules)[number], enabled: boolean) {
 		try {
-			await api.put(`/api/settings/rules/${r.id}`, { ...payload({ ...r, id: r.id, maxDays: r.maxDays ? String(r.maxDays) : '' }), enabled });
-			toast('success', enabled ? `“${r.name}” is on` : `“${r.name}” is off`);
+			const res = await api.put(`/api/settings/rules/${r.id}`, { ...payload({ ...r, id: r.id, maxDays: r.maxDays ? String(r.maxDays) : '' }), enabled });
+			if (wentForApproval(res)) toast('success', 'Sent to another admin', 'It changes once a second admin approves it.');
+			else toast('success', enabled ? `“${r.name}” is on` : `“${r.name}” is off`);
 		} catch (err) {
 			toast('error', 'Couldn’t change the rule', errorMessage(err));
 		}

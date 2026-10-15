@@ -111,6 +111,12 @@
 			<option value="7">Expiring in 7 days</option>
 			<option value="30">Expiring in 30 days</option>
 		</select>
+		{#if data.canSeeOthers && !data.mine}
+			<label class="flex items-center gap-1.5 text-xs text-muted-foreground" title="Who had access at the end of this day, including access removed since">
+				As of
+				<input type="date" class="input h-8 w-auto text-xs" value={data.filters.asOf} max={new Date().toISOString().slice(0, 10)} onchange={(e) => nav({ asOf: e.currentTarget.value })} />
+			</label>
+		{/if}
 		<form class="relative w-full max-w-xs" onsubmit={(e) => (e.preventDefault(), nav({ q }))}>
 			<Search class="pointer-events-none absolute top-2 left-3 size-4 text-muted-foreground" />
 			<input class="input h-8 pl-9 text-xs" placeholder="Person, resource or level" bind:value={q} />
@@ -118,6 +124,9 @@
 		<span class="ml-auto font-mono text-xs text-muted-foreground">{data.grants.length} {data.grants.length === 1 ? 'grant' : 'grants'}</span>
 	</div>
 
+	{#if data.filters.asOf}
+		<p class="mb-3 rounded-xl border border-primary/30 bg-primary-soft px-3 py-2 text-xs text-primary">Showing who had access at the end of {data.filters.asOf}, including access removed since. <button class="underline" onclick={() => nav({ asOf: '' })}>Back to now</button></p>
+	{/if}
 	{#if data.grants.length}
 		<div class="card overflow-x-auto">
 			<table class="w-full text-[0.8125rem]">

@@ -10,7 +10,17 @@ On a person's page, **Offboard** (admins only):
 2. Cancels their open requests.
 3. Opens a removal for every grant they hold, with the reason *Offboarding*. Removals through a webhook or integration happen automatically. The rest go to each resource's fulfillers.
 
-The confirmation lists exactly what will be removed. Their history stays.
+The dialog lists exactly what will be removed and asks for their **last day** (and an optional note, such as the HR ticket). Their history stays.
+
+## How fast access goes
+
+Auditors sample leavers and compare their last day with when each piece of access was removed. Set your target in **Settings → General → Approval controls → Remove leavers' access within** (24 hours by default):
+
+- **Escalation:** removals still open after the target are escalated to the system's fulfillers and to admins, once a day until they're done, and each escalation is logged (`request.overdue`).
+- **Leavers report:** **Audit evidence → Leavers** lists everyone offboarded or deactivated in the period, with their last day, when they were offboarded, how many removals are done, and the hours from the end of their last day to the last removal. Each is marked **On time**, **Late** or **In progress**. Download it as CSV, or get it from the API at `GET /api/v1/leavers`.
+- **Flags:** the report also flags anyone **deactivated without offboarding** who still has access (for example when directory sync is set to *Deactivate only*), and access **granted after they left**.
+
+The clock starts at the end of their last day if you gave one, otherwise when they were offboarded. When your IdP deactivates someone, it starts when ac·modern hears about it.
 
 <Tip>
   With [directory sync](/identity/directory-sync), deactivating someone in your IdP does this for you. Choose **Offboard (remove all their access)** as the deactivation behaviour.

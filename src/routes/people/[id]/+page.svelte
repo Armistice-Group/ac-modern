@@ -48,21 +48,26 @@
 		}
 	}
 
-	async function offboard() {
-		const ok = await confirmAction({
-			title: `Offboard ${displayName(p)}?`,
-			body: `They’re signed out and can’t sign in to ${page.data.org?.name}. Their open requests are cancelled, and a removal request opens for each of their ${data.grants.length} ${data.grants.length === 1 ? 'grant' : 'grants'} so whoever manages each tool can take it away.`,
-			detail: data.grants.map((g) => `${g.resource.name} · ${g.role.name}`).join('\n') || undefined,
-			confirmLabel: 'Offboard',
-			danger: true
-		});
-		if (!ok) return;
+	let offboarding = $state(false);
+	let lastDay = $state('');
+	let offboardNote = $state('');
+	function openOffboard() {
+		lastDay = new Date().toISOString().slice(0, 10);
+		offboardNote = '';
+		offboarding = true;
+	}
+	async function offboard(e: SubmitEvent) {
+		e.preventDefault();
+		busy = true;
 		try {
-			const r = await api.post<{ removals: number }>(`/api/people/${p.id}/offboard`, {});
+			const r = await api.post<{ removals: number }>(`/api/people/${p.id}/offboard`, { leftAt: lastDay, note: offboardNote });
 			toast('success', `${displayName(p)} offboarded`, `${r.removals} ${r.removals === 1 ? 'removal' : 'removals'} opened.`);
+			offboarding = false;
 			await invalidateAll();
 		} catch (err) {
 			toast('error', 'Couldn’t offboard', errorMessage(err));
+		} finally {
+			busy = false;
 		}
 	}
 
@@ -106,7 +111,7 @@
 				<button class="btn btn-secondary" onclick={() => openChange('onboarding')}><UserPlus />Onboard</button>
 				<button class="btn btn-secondary" onclick={() => openChange('transfer')}><ArrowLeftRight />Transfer</button>
 				{#if data.admin && (p.role !== 'owner' || data.myRole === 'owner')}<button class="btn btn-ghost" onclick={sendReset}><KeyRound />Reset password</button>{/if}
-				{#if data.admin}<button class="btn btn-danger-outline" onclick={offboard}><UserMinus />Offboard</button>{/if}
+				{#if data.admin}<button class="btn btn-danger-outline" onclick={openOffboard}><UserMinus />Offboard</button>{/if}
 			{/if}
 		{:else}
 			<span class="badge">Offboarded</span>
@@ -213,4 +218,29 @@
 	</div>
 	<p class="mt-2 text-[0.6875rem] text-warning">Anyone with this link can set their password. Send it privately.</p>
 	{#snippet footer()}<button class="btn btn-primary" onclick={() => (resetOpen = false)}>Done</button>{/snippet}
+</Dialog>
+
+<Dialog bind:open={offboarding} title="Offboard {displayName(p)}?" description="They’re signed out and can’t sign in. Their open requests are cancelled, and a removal opens for each of their {data.grants.length} {data.grants.length === 1 ? 'grant' : 'grants'}.">
+	<form id="offboard-form" class="space-y-3" onsubmit={offboard}>
+		{#if data.grants.length}
+			<ul class="max-h-40 overflow-y-auto rounded-lg bg-surface px-3 py-2 text-xs text-muted-foreground">
+				{#each data.grants as g (g.id)}<li>{g.resource.name} · {g.role.name}</li>{/each}
+			</ul>
+		{/if}
+		<div class="grid gap-3 sm:grid-cols-[10rem_1fr]">
+			<div>
+				<label class="label" for="ld">Last day</label>
+				<input id="ld" class="input" type="date" bind:value={lastDay} required />
+			</div>
+			<div>
+				<label class="label" for="on">Note</label>
+				<input id="on" class="input" placeholder="Leaving date from HR, ticket…" bind:value={offboardNote} maxlength="1000" />
+			</div>
+		</div>
+		<p class="text-xs text-muted-foreground">The audit evidence measures how long their access took to remove, from the end of their last day.</p>
+	</form>
+	{#snippet footer()}
+		<button class="btn btn-ghost" onclick={() => (offboarding = false)}>Cancel</button>
+		<button class="btn btn-danger" form="offboard-form" disabled={busy}>{#if busy}<LoaderCircle class="animate-spin" />{/if}Offboard</button>
+	{/snippet}
 </Dialog>

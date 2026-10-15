@@ -58,14 +58,21 @@ export interface GrantFilter {
 	statuses?: GrantStatus[];
 	expiringWithinDays?: number;
 	q?: string;
+	/** Access held at this moment (ISO), whatever happened since; overrides statuses. */
+	asOf?: string;
 }
 
 export async function listGrants(db: Db, orgId: string, f: GrantFilter = {}): Promise<Grant[]> {
 	const where = ['g.org_id = ?'];
 	const params: (string | number)[] = [orgId];
-	const statuses = f.statuses ?? ['active', 'pending_revoke'];
-	where.push(`g.status IN (${statuses.map(() => '?').join(',')})`);
-	params.push(...statuses);
+	if (f.asOf) {
+		where.push('g.granted_at <= ? AND (g.revoked_at IS NULL OR g.revoked_at > ?)');
+		params.push(f.asOf, f.asOf);
+	} else {
+		const statuses = f.statuses ?? ['active', 'pending_revoke'];
+		where.push(`g.status IN (${statuses.map(() => '?').join(',')})`);
+		params.push(...statuses);
+	}
 	if (f.userId) where.push('g.user_id = ?'), params.push(f.userId);
 	if (f.resourceId) where.push('g.resource_id = ?'), params.push(f.resourceId);
 	if (f.resourceIds) {
@@ -127,7 +134,7 @@ export async function recordGrant(
 }
 
 /** Deactivates a member and opens removal requests for everything they hold. */
-export async function offboard(db: Db, actor: Actor, userId: string, note: string, fx: Effects, reason: 'offboarding' | 'directory' = 'offboarding') {
+export async function offboard(db: Db, actor: Actor, userId: string, note: string, fx: Effects, reason: 'offboarding' | 'directory' = 'offboarding', leftAt: string | null = null) {
 	if (userId === actor.userId) throw badRequest('You can’t offboard yourself');
 	return db.tx(async (tx) => {
 		const p = await tx.get<{ role: string; name: string; email: string }>('SELECT m.role, u.name, u.email FROM members m JOIN users u ON u.id = m.user_id WHERE m.org_id = ? AND m.user_id = ?', [
@@ -155,7 +162,7 @@ export async function offboard(db: Db, actor: Actor, userId: string, note: strin
 			action: 'member.offboarded',
 			subject: p.name || p.email,
 			summary: `Offboarded ${p.name || p.email}: ${grants.length} ${grants.length === 1 ? 'access removal' : 'access removals'} opened`,
-			data: { userId, note }
+			data: { userId, note, leftAt, removals: grants.length, via: reason }
 		});
 		return grants.length;
 	});

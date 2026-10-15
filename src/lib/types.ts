@@ -46,6 +46,14 @@ export interface OrgSettings {
 	requirePrivilegedApproval?: boolean;
 	/** Admins may approve on behalf of the designated approver (recorded as an override). Default off. */
 	allowAdminOverride?: boolean;
+	/** Hours a removal may wait before it's escalated, and the target the leavers report measures. Default 24. */
+	removalSlaHours?: number;
+	/** Sessions end this many hours after sign-in. Default 720 (30 days). */
+	sessionMaxHours?: number;
+	/** Sessions end after this many minutes without activity (0 or unset: never). */
+	sessionIdleMinutes?: number;
+	/** Changes to approval controls need a second admin to approve them. */
+	requireSecondAdmin?: boolean;
 }
 
 export interface SessionUser {
@@ -229,6 +237,47 @@ export interface PersonalToken {
 	expiresAt: string | null;
 	lastUsedAt: string | null;
 	user: { id: string; name: string; email: string };
+}
+
+/** Someone who left, and how quickly their access was removed. */
+export interface Leaver {
+	userId: string;
+	name: string;
+	email: string;
+	/** When ac·modern offboarded or deactivated them. */
+	at: string;
+	/** Their last day, if given. */
+	leftAt: string | null;
+	how: 'offboarded' | 'deactivated';
+	by: string;
+	removals: number;
+	removed: number;
+	pending: number;
+	lastRemovedAt: string | null;
+	/** From the end of their last day (or offboarding) to the last removal, or to now while removals are pending. */
+	hours: number;
+	/** Within the target; null while removals are still pending and the target hasn't passed. */
+	onTime: boolean | null;
+	/** Access still active now (e.g. deactivated without offboarding). */
+	stillActive: number;
+	/** Access granted to them after they left. */
+	grantedAfter: number;
+}
+
+/** A change to the approval controls waiting for a second admin. */
+export interface PendingChange {
+	id: string;
+	kind: 'rule' | 'review_policy' | 'resource' | 'settings';
+	targetId: string | null;
+	action: 'create' | 'update' | 'delete';
+	payload: unknown;
+	summary: string;
+	status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'failed';
+	requestedBy: { id: string; name: string } | null;
+	requestedAt: string;
+	decidedBy: { id: string; name: string } | null;
+	decidedAt: string | null;
+	note: string;
 }
 
 /** An API error body: `{ message, hint? }`. */

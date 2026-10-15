@@ -1,5 +1,5 @@
 import type { Cookies } from '@sveltejs/kit';
-import { addMember, countOrgs, createOrg, createSession, createUser, deleteSession, getOrg, membership, membershipsOf, SESSION_TTL_MS, sessionByToken, setSessionOrg } from './accounts.ts';
+import { addMember, countOrgs, createOrg, createSession, createUser, deleteSession, getOrg, membership, membershipsOf, orgSettings, SESSION_TTL_MS, sessionByToken, sessionWithinLimits, setSessionOrg } from './accounts.ts';
 import { config, isCloud } from './config.ts';
 import { hashPassword } from './crypto.ts';
 import { db } from './db.ts';
@@ -60,6 +60,15 @@ export async function authenticate(cookies: Cookies, locals: App.Locals): Promis
 	let orgId = s.org_id && (await membership(d, s.org_id, s.user_id)) ? s.org_id : (locals.orgs[0]?.orgId ?? null);
 	if (orgId !== s.org_id && orgId) await setSessionOrg(d, s.id, orgId);
 	if (orgId) {
+		// The organisation's session limits (lifetime, idle timeout).
+		if (!(await sessionWithinLimits(d, s, await orgSettings(d, orgId)))) {
+			await d.run('DELETE FROM sessions WHERE id = ?', [s.id]);
+			cookies.delete(SESSION_COOKIE, { path: '/' });
+			locals.sessionId = null;
+			locals.user = null;
+			locals.orgs = [];
+			return 'anonymous';
+		}
 		locals.org = (await getOrg(d, orgId)) ?? null;
 		locals.role = locals.orgs.find((m) => m.orgId === orgId)?.role ?? null;
 		// Orgs that require SSO don't accept password sessions, except from owners (break-glass).

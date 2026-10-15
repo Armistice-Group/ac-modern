@@ -73,6 +73,17 @@ Three lists sit under the population:
 - **ac·modern admin changes:** who was made (or stopped being) an admin or owner
 - **Control changes:** approval rules, auto-approval rules, system owners, privileged levels and settings changed in the period
 
+## Leavers and access reviews
+
+Two more boxes cover the period:
+
+- **Leavers:** everyone offboarded or deactivated, with their last day and how long their access took to remove against your target. See [Offboarding](/guides/offboarding#how-fast-access-goes).
+- **Access reviews:** each review started or closed, with completion, whether it finished on time, and how many revoked grants were actually removed. See [Access reviews](/guides/access-reviews).
+
+## Who had access on a date
+
+Auditors often ask for the users of a system "as of" a date, such as the end of the period. On **Access**, set **As of** to a date: the list shows who held each level at the end of that day, including access removed since. The API takes `GET /api/v1/access?as_of=2026-12-31`.
+
 ## Control description
 
 A written description of how your process works, generated from your current settings (approval rules, auto-approval rules, privileged levels, admin override, pre-approved resources). Copy it into your control narrative or walkthrough notes, and check it against what you actually do.

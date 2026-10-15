@@ -34,6 +34,10 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			const b = await getBilling(d, locals.org!.id);
 			return b.status === 'past_due' || b.status === 'unpaid' ? ('payment' as const) : !b.canGrow ? ('seats' as const) : null;
 		})(),
+		pendingChanges:
+			locals.role === 'owner' || locals.role === 'admin'
+				? Number((await d.get<{ n: number }>("SELECT CAST(COUNT(*) AS INTEGER) AS n FROM pending_changes WHERE org_id = ? AND status = 'pending' AND (requested_by IS NULL OR requested_by <> ?)", [locals.org.id, locals.user.id]))!.n)
+				: 0,
 		reports: (await d.get<{ n: number }>("SELECT CAST(COUNT(*) AS INTEGER) AS n FROM members WHERE org_id = ? AND manager_id = ? AND status = 'active'", [locals.org.id, locals.user.id]))!.n
 	};
 };

@@ -1,0 +1,36 @@
+---
+title: Control changes and sessions
+description: A second admin approves changes to approval controls; sign-ins expire on your schedule.
+icon: users-round
+---
+
+## Changes need a second admin
+
+Turn on **Settings → General → Approval controls → Control changes need a second admin** (you need at least two admins). From then on, an admin can *propose* a change to how access is approved, but it only takes effect when a **different** admin approves it under **Settings → Changes**. This covers:
+
+| Change | Needs a second admin |
+|---|---|
+| Auto-approval rules: adding, changing, turning on or off | Yes |
+| Review policies: changing, pausing, deleting | Yes |
+| A system's approval rule, owner, approvers or privileged levels | Yes |
+| Adding a system with no approval step | Yes |
+| Approval settings: privileged approval, admin override, default approval, removal target, session limits, turning this off | Yes |
+| Deleting an auto-approval rule, adding a review policy, turning this on | No: these only tighten things |
+| Anything else (names, descriptions, setup, notifications) | No |
+
+Other admins get an email (and Slack message) when a change is waiting. Rejecting needs a reason, which the proposer sees. Whoever proposed a change can withdraw it until it's decided.
+
+Everything is in the audit log: `change.requested`, `change.approved` or `change.rejected` with who decided, and the change itself recorded as made by the person who proposed it. All of it appears under **Control changes** in the [audit evidence](/compliance/audit-evidence).
+
+<Note>
+  This closes the gap auditors look for when one admin could, say, add a rule that auto-approves their own access. With it on, that takes two people, and both are on the record.
+</Note>
+
+## Session limits
+
+**Settings → General → Approval controls**:
+
+- **Sign-ins last:** from 8 hours to 30 days (the default) after signing in, whatever happens in between.
+- **Sign out when idle for:** from 15 minutes to 8 hours without activity, or never.
+
+Both apply to everyone in the organisation, including sign-ins through SSO. Match them to your access control policy. They're listed in the API under `GET /api/v1/organization` (`controls`).

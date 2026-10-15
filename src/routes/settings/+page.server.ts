@@ -16,6 +16,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		defaultApproval: s.defaultApproval ?? 'approvers',
 		requirePrivilegedApproval: s.requirePrivilegedApproval !== false,
 		allowAdminOverride: !!s.allowAdminOverride,
+		removalSlaHours: s.removalSlaHours ?? 24,
+		sessionMaxHours: s.sessionMaxHours ?? 720,
+		sessionIdleMinutes: s.sessionIdleMinutes ?? 0,
+		requireSecondAdmin: !!s.requireSecondAdmin,
 		smtp: !!config.smtp,
 		database: d.kind,
 		mode: config.mode

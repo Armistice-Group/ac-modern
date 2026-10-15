@@ -1,4 +1,6 @@
 <script lang="ts">
+	import LeaversCard from './LeaversCard.svelte';
+	import ReviewsCard from './ReviewsCard.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Download, Printer, ShieldAlert, FileCheck2, UserPlus, ArrowLeftRight, TriangleAlert, Copy, Inbox, MinusCircle } from '@lucide/svelte';
@@ -75,7 +77,12 @@
 			c.autoRules.length
 				? `Admin-defined auto-approval rules approve some standard (never privileged) requests without a person: ${c.autoRules.join('; ')}. Each such request records the rule and why it matched, and every change to a rule is logged.`
 				: '',
-			'Access is set up only after approval, by a named administrator or an automated integration, and the request is closed with who did it and when. New hires’ starting access is requested as one onboarding batch; transfers request new access and remove old access together. Time-limited access is removed automatically when it expires, and access is reviewed periodically by system owners.',
+			'Access is set up only after approval, by a named administrator or an automated integration, and the request is closed with who did it and when. New hires’ starting access is requested as one onboarding batch; transfers request new access and remove old access together. Time-limited access is removed automatically when it expires.',
+			`When someone leaves, they are offboarded (by an admin or automatically when deactivated in the identity provider): their sessions end, open requests are cancelled, and a removal is opened for every access they hold. Removals are expected within ${data.leavers.slaHours} hours of the end of their last day; removals still open after that are escalated to the fulfillers and admins daily, and the time taken is reported for each leaver.`,
+			data.reviewPolicies.length
+				? `Access is reviewed on a schedule: ${data.reviewPolicies.join('; ')}. Nobody reviews their own access. Reviewers are reminded before the due date and late reviews are escalated to admins; revoked access is removed through a removal request, and each review records who decided, when, and when the access was removed.`
+				: 'Access is reviewed periodically by system owners; revoked access is removed through a removal request.',
+			c.requireSecondAdmin ? 'Changes to approval controls (auto-approval rules, review policies, systems’ approval rules, owners, approvers and privileged levels, and approval settings) take effect only when a second admin approves them.' : '',
 			'The request population and individual tickets (with approvals, timeline and a SHA-256 fingerprint of the record) can be exported for any period.'
 		]
 			.filter(Boolean)
@@ -211,6 +218,11 @@
 				</ul>
 			</section>
 		{/each}
+	</div>
+
+	<div class="grid gap-6 xl:grid-cols-2">
+		<LeaversCard rows={data.leavers.rows} slaHours={data.leavers.slaHours} csvHref="/api/evidence/leavers?from={data.period.from}&to={data.period.to}" />
+		<ReviewsCard reviews={data.reviews} />
 	</div>
 
 	<section class="card p-5">

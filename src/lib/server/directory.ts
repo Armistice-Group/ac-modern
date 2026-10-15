@@ -268,7 +268,7 @@ export async function reconcile(db: Db, orgId: string, fx: Effects): Promise<Rec
 			} else {
 				await db.run("UPDATE members SET status = 'deactivated', deactivated_by = 'directory' WHERE org_id = ? AND user_id = ?", [orgId, userId]);
 				await db.run('DELETE FROM sessions WHERE user_id = ? AND org_id = ?', [userId, orgId]);
-				await record(db, { orgId, actorId: null, action: 'member.deactivated', subject: du.email, summary: `${du.name || du.email} deactivated by the directory` });
+				await record(db, { orgId, actorId: null, action: 'member.deactivated', subject: du.email, summary: `${du.name || du.email} deactivated by the directory`, data: { userId } });
 				res.deactivated++;
 			}
 		}

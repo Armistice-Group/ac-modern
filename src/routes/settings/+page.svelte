@@ -2,7 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { LoaderCircle, Send, CircleCheck, CircleAlert } from '@lucide/svelte';
 	import Switch from '#lib/components/Switch.svelte';
-	import { api, errorMessage } from '#lib/client/api.ts';
+	import { api, errorMessage, wentForApproval } from '#lib/client/api.ts';
 	import { toast } from '#lib/client/state.svelte.ts';
 	import { APPROVAL_LABEL } from '#lib/format.ts';
 	import type { ApprovalPolicy } from '#lib/types.ts';
@@ -16,6 +16,10 @@
 	let defaultApproval = $state<ApprovalPolicy>('approvers');
 	let requirePrivileged = $state(true);
 	let allowOverride = $state(false);
+	let removalSla = $state(24);
+	let sessionMax = $state(720);
+	let sessionIdle = $state(0);
+	let secondAdmin = $state(false);
 	let busy = $state<string | null>(null);
 	$effect(() => {
 		name = data.name;
@@ -24,19 +28,26 @@
 		defaultApproval = data.defaultApproval;
 		requirePrivileged = data.requirePrivilegedApproval;
 		allowOverride = data.allowAdminOverride;
+		removalSla = data.removalSlaHours;
+		sessionMax = data.sessionMaxHours;
+		sessionIdle = data.sessionIdleMinutes;
+		secondAdmin = data.requireSecondAdmin;
 	});
 
 	async function save(section: string, body: Record<string, unknown>) {
 		busy = section;
 		try {
-			await api.patch('/api/settings', body);
-			toast('success', 'Saved');
+			const r = await api.patch('/api/settings', body);
+			if (wentForApproval(r)) toast('success', 'Sent to another admin', 'It applies once a second admin approves it under Settings → Changes.');
+			else toast('success', 'Saved');
 			if (section === 'slack') slack = '';
 			await invalidateAll();
 		} catch (err) {
 			toast('error', 'Couldn’t save', errorMessage(err));
 		} finally {
 			busy = null;
+			// Show what actually applies (a proposal or a refusal leaves the old value).
+			await invalidateAll();
 		}
 	}
 
@@ -112,6 +123,35 @@
 					<p class="text-xs text-muted-foreground">Off: only the manager, system owner or designated approvers can approve. On: admins can too, and it’s flagged as an override in the evidence.</p>
 				</div>
 				<Switch bind:checked={allowOverride} label="Allow admin override" onchange={(v) => save('override', { allowAdminOverride: v })} />
+			</div>
+			<div class="flex items-start justify-between gap-4">
+				<div>
+					<p class="text-[0.8125rem] font-medium">Control changes need a second admin</p>
+					<p class="text-xs text-muted-foreground">Auto-approval rules, review policies, systems’ approval rules, owners, approvers and privileged levels, and these settings: an admin proposes, a different admin approves (<a class="text-primary hover:underline" href="/settings/changes">Changes</a>). Needs at least two admins.</p>
+				</div>
+				<Switch bind:checked={secondAdmin} label="Require a second admin" onchange={(v) => save('second', { requireSecondAdmin: v })} />
+			</div>
+			<div class="grid gap-4 sm:grid-cols-3">
+				<div>
+					<label class="label" for="sla">Remove leavers’ access within</label>
+					<select id="sla" class="input" bind:value={removalSla} onchange={() => save('sla', { removalSlaHours: removalSla })}>
+						{#each [4, 8, 24, 48, 72, 120] as h (h)}<option value={h}>{h < 24 ? `${h} hours` : `${h / 24} ${h === 24 ? 'day' : 'days'}`}</option>{/each}
+					</select>
+					<p class="mt-1 text-[0.6875rem] text-muted-foreground">Later removals are escalated daily and flagged in the leavers report.</p>
+				</div>
+				<div>
+					<label class="label" for="smax">Sign-ins last</label>
+					<select id="smax" class="input" bind:value={sessionMax} onchange={() => save('smax', { sessionMaxHours: sessionMax })}>
+						{#each [8, 12, 24, 168, 336, 720] as h (h)}<option value={h}>{h < 24 ? `${h} hours` : h < 168 ? `${h / 24} day` : `${h / 168} ${h === 168 ? 'week' : 'weeks'}`}</option>{/each}
+					</select>
+				</div>
+				<div>
+					<label class="label" for="sidle">Sign out when idle for</label>
+					<select id="sidle" class="input" bind:value={sessionIdle} onchange={() => save('sidle', { sessionIdleMinutes: sessionIdle })}>
+						<option value={0}>Never</option>
+						{#each [15, 30, 60, 240, 480] as m (m)}<option value={m}>{m < 60 ? `${m} minutes` : `${m / 60} ${m === 60 ? 'hour' : 'hours'}`}</option>{/each}
+					</select>
+				</div>
 			</div>
 		</div>
 	</section>

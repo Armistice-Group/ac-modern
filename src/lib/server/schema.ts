@@ -444,5 +444,27 @@ ALTER TABLE reviews ADD COLUMN reminded_at TEXT;
 ALTER TABLE reviews ADD COLUMN overdue_notified_at TEXT;
 ALTER TABLE review_items ADD COLUMN capacity TEXT NOT NULL DEFAULT '';
 ALTER TABLE review_items ADD COLUMN removal_request_id TEXT REFERENCES requests(id) ON DELETE SET NULL
+`,
+	// Overdue removals, idle sessions, and control changes that wait for a second admin.
+	`
+ALTER TABLE requests ADD COLUMN escalated_at TEXT;
+ALTER TABLE sessions ADD COLUMN last_seen_at TEXT;
+
+CREATE TABLE pending_changes (
+	id TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	kind TEXT NOT NULL,
+	target_id TEXT,
+	action TEXT NOT NULL,
+	payload TEXT NOT NULL,
+	summary TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'pending',
+	requested_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+	requested_at TEXT NOT NULL,
+	decided_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+	decided_at TEXT,
+	note TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX pending_changes_org ON pending_changes(org_id, status)
 `
 ];

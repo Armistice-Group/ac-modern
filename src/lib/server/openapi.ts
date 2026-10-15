@@ -31,6 +31,7 @@ export function openapi(origin: string) {
 			'/approval-rules': get('Auto-approval rules: which non-privileged requests skip approval, and for whom', list('ApprovalRule'), page),
 			'/access': get('Who has what (grants)', list('Grant'), [
 				{ name: 'status', in: 'query', schema: { enum: ['active', 'all'] } },
+				{ name: 'as_of', in: 'query', schema: { type: 'string' }, description: 'Who had access at this moment (ISO date or time; a bare date means the end of that day). Overrides status.' },
 				{ name: 'user_email', in: 'query', schema: { type: 'string' } },
 				{ name: 'resource_id', in: 'query', schema: { type: 'string' } },
 				...page
@@ -52,6 +53,7 @@ export function openapi(origin: string) {
 			'/review-policies': get('Review policies: reviews that start on a schedule (monthly, quarterly…)', { type: 'object' }, page),
 			'/reviews': get('Access review campaigns: policy, scope, due and closed dates, decided, revoked and removed counts', { type: 'object' }, page),
 			'/reviews/{id}': { get: { summary: 'A review with every item: reviewer and capacity, decision, and whether a revoke was carried out', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { '200': { description: 'OK' } } } },
+			'/leavers': get('People who left in a period, and how long their access took to remove against the target', { type: 'object' }, [...period, ...page]),
 			'/events': get('The audit log', list('Event'), [...period, { name: 'action', in: 'query', schema: { type: 'string' }, description: 'e.g. request, grant.created' }, ...page])
 		},
 		components: {

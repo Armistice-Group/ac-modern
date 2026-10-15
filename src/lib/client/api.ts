@@ -42,3 +42,8 @@ export function errorMessage(err: unknown): string {
 	if (err instanceof ApiError && err.detail?.hint) return `${err.message}. ${err.detail.hint}`;
 	return err instanceof Error ? err.message : String(err);
 }
+
+/** A write that went to a second admin instead of applying (HTTP 202 `{ pending: true }`). */
+export function wentForApproval(r: unknown): boolean {
+	return !!r && typeof r === 'object' && (r as { pending?: boolean }).pending === true;
+}

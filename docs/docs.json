@@ -71,6 +71,7 @@
             "pages": [
               "compliance/audit-evidence",
               "compliance/privileged-access",
+              "compliance/control-changes",
               "compliance/frameworks"
             ]
           },

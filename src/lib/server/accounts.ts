@@ -212,10 +212,24 @@ export async function createSession(db: Db, userId: string, orgId: string | null
 }
 
 export async function sessionByToken(db: Db, token: string) {
-	return db.get<{ id: string; user_id: string; org_id: string | null; auth_method: string; email: string; name: string }>(
-		`SELECT s.id, s.user_id, s.org_id, s.auth_method, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?`,
+	return db.get<{ id: string; user_id: string; org_id: string | null; auth_method: string; email: string; name: string; created_at: string; last_seen_at: string | null }>(
+		`SELECT s.id, s.user_id, s.org_id, s.auth_method, u.email, u.name, s.created_at, s.last_seen_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?`,
 		[sha256(token), now()]
 	);
+}
+
+/**
+ * Whether a session is still within the organisation's limits: at most `maxHours` since
+ * sign-in, and (if set) used within the last `idleMinutes`. Marks it as used, at most once a
+ * minute.
+ */
+export async function sessionWithinLimits(db: Db, s: { id: string; created_at: string; last_seen_at: string | null }, settings: OrgSettings, at = Date.now()): Promise<boolean> {
+	const maxHours = settings.sessionMaxHours ?? 720;
+	if (at - Date.parse(s.created_at) > maxHours * 3_600_000) return false;
+	const seen = Date.parse(s.last_seen_at ?? s.created_at);
+	if (settings.sessionIdleMinutes && at - seen > settings.sessionIdleMinutes * 60_000) return false;
+	if (at - seen > 60_000) await db.run('UPDATE sessions SET last_seen_at = ? WHERE id = ?', [new Date(at).toISOString(), s.id]);
+	return true;
 }
 
 export async function setSessionOrg(db: Db, sessionId: string, orgId: string) {

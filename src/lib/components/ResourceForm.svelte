@@ -4,7 +4,7 @@
 	import PeoplePicker from './PeoplePicker.svelte';
 	import ResourceIcon from './ResourceIcon.svelte';
 	import Switch from './Switch.svelte';
-	import { api, errorMessage } from '#lib/client/api.ts';
+	import { api, errorMessage, wentForApproval } from '#lib/client/api.ts';
 	import { INTEGRATIONS, TARGET_KINDS } from '#lib/integrations.ts';
 	import { toast } from '#lib/client/state.svelte.ts';
 	import { APPROVAL_LABEL, DURATIONS, HUES } from '#lib/format.ts';
@@ -115,14 +115,20 @@
 				...(newSecret !== null ? { webhookSecret: newSecret } : {})
 			};
 			if (resource) {
-				await api.put(`/api/resources/${resource.id}`, body);
-				toast('success', 'Saved');
+				const r = await api.put(`/api/resources/${resource.id}`, body);
+				if (wentForApproval(r)) toast('success', 'Sent to another admin', 'Changes to who approves apply once a second admin approves them (Settings → Changes).');
+				else toast('success', 'Saved');
 				newSecret = null;
 				await invalidateAll();
 			} else {
 				const r = await api.post<{ id: string }>('/api/resources', body);
-				toast('success', `${f.name} added`, 'People can request it from the catalog now.');
-				goto(`/resources/${r.id}`);
+				if (wentForApproval(r)) {
+					toast('success', 'Sent to another admin', `${f.name} has no approval step, so a second admin has to approve adding it (Settings → Changes).`);
+					goto('/resources');
+				} else {
+					toast('success', `${f.name} added`, 'People can request it from the catalog now.');
+					goto(`/resources/${r.id}`);
+				}
 			}
 		} catch (err) {
 			toast('error', 'Couldn’t save', errorMessage(err));

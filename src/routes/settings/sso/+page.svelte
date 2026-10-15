@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { Copy, LoaderCircle, Trash2, CircleCheck, CircleDashed, Plug } from '@lucide/svelte';
+	import { Copy, LoaderCircle, Trash2, CircleCheck, CircleDashed, Plug, KeyRound } from '@lucide/svelte';
+	import BrandLogo from '#lib/components/BrandLogo.svelte';
+	import { brandForIssuer } from '#lib/brands.ts';
 	import Switch from '#lib/components/Switch.svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
 	import { confirmAction, toast } from '#lib/client/state.svelte.ts';
@@ -8,6 +10,7 @@
 
 	let { data }: PageProps = $props();
 	let f = $state({ issuer: '', clientId: '', clientSecret: '', name: '', scopes: '', autoCreate: true, required: false });
+	const brand = $derived(brandForIssuer(f.issuer, f.name));
 	let domain = $state('');
 	let busy = $state<string | null>(null);
 	$effect(() => {
@@ -79,7 +82,11 @@
 			</div>
 			<div>
 				<label class="label" for="name">Button label</label>
-				<input id="name" class="input" bind:value={f.name} disabled={env} />
+				<div class="relative">
+					<span class="pointer-events-none absolute inset-y-0 left-3 flex items-center">{#if brand}<BrandLogo {brand} class="size-4" />{:else}<KeyRound class="size-4 text-muted-foreground" />{/if}</span>
+					<input id="name" class="input pl-9" bind:value={f.name} disabled={env} />
+				</div>
+				<p class="mt-1 text-[0.6875rem] text-muted-foreground">On the sign-in button{brand ? ', with this logo' : ''}.</p>
 			</div>
 			<div>
 				<label class="label" for="scopes">Scopes</label>

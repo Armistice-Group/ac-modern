@@ -15,6 +15,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	return {
 		resource: { id: resource.id, name: resource.name, color: resource.color },
 		pullFrom: mapped && resource.integration ? INTEGRATIONS[resource.integration].name : null,
+		pullKind: mapped && resource.integration ? resource.integration : null,
 		runs: await listReconciliations(d, c.org.id, { resourceId: resource.id })
 	};
 };

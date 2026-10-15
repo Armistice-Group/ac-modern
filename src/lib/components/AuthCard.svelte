@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BrandLogo, { type Brand } from './BrandLogo.svelte';
 	import { KeyRound, LoaderCircle } from '@lucide/svelte';
 	import Logo from './Logo.svelte';
 
@@ -20,7 +21,7 @@
 		/** False hides the email/password form (SSO-only). */
 		showForm?: boolean;
 		/** SSO button: label and start URL. */
-		sso?: { name: string; href: string } | null;
+		sso?: { name: string; href: string; brand?: Brand | null } | null;
 		error?: string;
 		/** Small note under the form. */
 		hint?: string;
@@ -62,7 +63,7 @@
 		</div>
 
 		{#if sso}
-			<a class="btn btn-primary h-9 w-full" href={sso.href} data-sveltekit-reload><KeyRound />Continue with {sso.name}</a>
+			<a class="btn btn-primary h-9 w-full" href={sso.href} data-sveltekit-reload>{#if sso.brand}<span class="grid size-5 place-items-center rounded-md bg-white text-black"><BrandLogo brand={sso.brand} class="size-3.5" /></span>{:else}<KeyRound />{/if}Continue with {sso.name}</a>
 			{#if showForm}
 				<div class="my-5 flex items-center gap-3 text-[0.6875rem] text-muted-foreground">
 					<span class="h-px flex-1 bg-border"></span>or<span class="h-px flex-1 bg-border"></span>

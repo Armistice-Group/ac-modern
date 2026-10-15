@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BrandLogo from '#lib/components/BrandLogo.svelte';
 	import { goto } from '$app/navigation';
 	import { ArrowLeft, CloudDownload, FileUp, GitCompareArrows, LoaderCircle } from '@lucide/svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
@@ -56,7 +57,7 @@
 		</section>
 		{#if data.pullFrom}
 			<section class="card p-5">
-				<h2 class="flex items-center gap-2 text-[0.9375rem] font-semibold tracking-tight"><CloudDownload class="size-4 text-primary" />Pull from {data.pullFrom}</h2>
+				<h2 class="flex items-center gap-2 text-[0.9375rem] font-semibold tracking-tight">{#if data.pullKind}<BrandLogo brand={data.pullKind} class="size-4" />{:else}<CloudDownload class="size-4 text-primary" />{/if}Pull from {data.pullFrom}</h2>
 				<p class="mt-1 text-xs text-muted-foreground">
 					{data.resource.name}’s access levels are set up through {data.pullFrom}. ac·modern reads who’s in each level’s group right now and compares. Nothing is changed in {data.pullFrom}.
 				</p>

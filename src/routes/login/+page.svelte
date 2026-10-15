@@ -117,7 +117,7 @@
 		title="Sign in to ac·modern"
 		subtitle={data.ssoRequired ? 'Your organisation requires single sign-on.' : 'Request access, approve it, and see who has what.'}
 		cta="Sign in"
-		sso={data.sso ? { name: data.sso.name, href: withNext(data.sso.href) } : null}
+		sso={data.sso ? { name: data.sso.name, href: withNext(data.sso.href), brand: data.sso.brand } : null}
 		error={data.error}
 		hint={data.cloud ? 'New here? <a class="text-primary hover:underline" href="/signup">Create an organisation</a>' : undefined}
 		onsubmit={login}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BrandLogo from '#lib/components/BrandLogo.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { LoaderCircle, Send, CircleCheck, CircleAlert } from '@lucide/svelte';
 	import Switch from '#lib/components/Switch.svelte';
@@ -186,7 +187,7 @@
 				</div>
 			</div>
 			<form onsubmit={(e) => (e.preventDefault(), save('slack', { slackWebhook: slack }))}>
-				<label class="label" for="slack">Slack channel <span class="font-normal">({data.slackConfigured ? 'connected' : 'incoming webhook URL'})</span></label>
+				<label class="label flex items-center gap-1.5" for="slack"><BrandLogo brand="slack" class="size-3.5" />Slack channel <span class="font-normal">({data.slackConfigured ? 'connected' : 'incoming webhook URL'})</span></label>
 				<div class="flex gap-2">
 					<input id="slack" class="input font-mono text-xs" type="url" placeholder={data.slackConfigured ? '•••••••• saved. Paste a new URL to replace it' : 'https://hooks.slack.com/services/…'} bind:value={slack} />
 					<button class="btn btn-secondary" disabled={!slack || busy === 'slack'}>Save</button>

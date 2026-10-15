@@ -17,6 +17,8 @@ ac·modern doesn't make you compliant: your auditor tests your controls, not you
   </Accordion>
   <Accordion title="CC6.3: Changing and removing access, least privilege">
     Transfers request new access and remove old access together. Permission changes are their own request type. Privileged levels need the system owner. Time-limited access expires on its own. Periodic access reviews have exportable decisions.
+
+    [Reconciliations](/guides/reconciling-access) compare each system's real user list with the recorded access (CC6.2 and CC6.3 completeness): accounts nobody approved, deactivated people who still have an account, and stale records, each resolved with a reason and exportable as evidence.
   </Accordion>
   <Accordion title="CC7.2: Monitoring, and the integrity of the audit trail">
     Every access change and setting change is in the audit log. Each day is sealed with a chained SHA-256 digest that admins can verify at any time, the seals can be exported, and every event can be streamed to your SIEM or log store as it happens. See [Audit log integrity](/compliance/audit-log).
@@ -30,7 +32,7 @@ ac·modern doesn't make you compliant: your auditor tests your controls, not you
 | **A.5.15** Access control | Per-system rules: owner, approval rule, levels, durations |
 | **A.5.16** Identity management | Directory sync from your IdP; offboarding when the IdP deactivates someone |
 | **A.5.17** Authentication information | Only partly: ac·modern delegates sign-in to your IdP with SSO, and can require two-step verification for its own password sign-ins. It doesn't manage passwords for other systems. |
-| **A.5.18** Access rights | Requests, approvals, setup, expiry, removal and periodic reviews, all recorded |
+| **A.5.18** Access rights | Requests, approvals, setup, expiry, removal, periodic reviews and reconciliations with each system's user list, all recorded |
 | **A.8.15** Logging | Audit log of access and control changes, daily tamper-evident seals, streaming to your log store |
 | **A.8.2** Privileged access rights | Privileged levels, owner approval, short durations, privileged-only evidence |
 
@@ -39,6 +41,7 @@ ac·modern doesn't make you compliant: your auditor tests your controls, not you
 - The population of access changes for the period: **Audit evidence → Population CSV**
 - Tickets for samples: **Print tickets** (one page each, with the record fingerprint)
 - Access reviews: **Reviews → Export evidence**
+- That every account in a system was approved: **Resources → a system → Reconcile → Export evidence**
 - Terminated employees' access removal: offboarding removals in the population (type *Removal*, reason *Offboarding*)
 - Who can administer the tool itself: **ac·modern admin changes** on the evidence page
 - A description of the process: **Control description** on the evidence page

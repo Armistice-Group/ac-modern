@@ -222,6 +222,14 @@
 						}
 					},
 					{
+						"name": "as_of",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Who had access at this moment (ISO date or time; a bare date means the end of that day). Overrides status."
+					},
+					{
 						"name": "user_email",
 						"in": "query",
 						"schema": {
@@ -496,6 +504,62 @@
 				}
 			}
 		},
+		"/leavers": {
+			"get": {
+				"summary": "People who left in a period, and how long their access took to remove against the target",
+				"parameters": [
+					{
+						"name": "from",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"description": "Inclusive (YYYY-MM-DD or ISO-8601)"
+					},
+					{
+						"name": "to",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"description": "Inclusive day, or exclusive ISO-8601 instant"
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
 		"/audit-anchors": {
 			"get": {
 				"summary": "Daily digests of the audit log (SHA-256, chained). Keep a copy: recomputing them from /events shows whether any event was changed",
@@ -545,6 +609,92 @@
 					},
 					"401": {
 						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
+		"/reconciliations": {
+			"get": {
+				"summary": "Reconciliations: each system’s real user list compared with recorded access, with counts and unresolved findings",
+				"parameters": [
+					{
+						"name": "from",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"description": "Inclusive (YYYY-MM-DD or ISO-8601)"
+					},
+					{
+						"name": "to",
+						"in": "query",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"description": "Inclusive day, or exclusive ISO-8601 instant"
+					},
+					{
+						"name": "resource_id",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
+		"/reconciliations/{id}": {
+			"get": {
+				"summary": "One reconciliation with every account compared: status (matched, unknown, missing, level_mismatch) and how each finding was resolved",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK"
+					},
+					"404": {
+						"description": "Not found"
 					}
 				}
 			}

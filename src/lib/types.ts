@@ -366,3 +366,48 @@ export interface DiscoveredApp extends Omit<ScannedApp, 'levels'> {
 	provisioned: boolean;
 	levels: { name: string; provisioned: boolean; people: number; notMembers: string[] }[];
 }
+
+/** What a reconciliation found for one account or grant. */
+export type ReconciliationStatus = 'matched' | 'unknown' | 'missing' | 'level_mismatch';
+/**
+ * How a finding was dealt with: recorded as existing access, removed in the system,
+ * justified as a service or shared account, the ac·modern record closed, or kept as is.
+ */
+export type ReconciliationResolution = 'recorded' | 'removed_in_system' | 'service_account' | 'closed' | 'kept';
+
+export interface ReconciliationCounts {
+	accounts: number;
+	matched: number;
+	unknown: number;
+	missing: number;
+	level_mismatch: number;
+}
+
+/** One comparison of a system's real user list with the access recorded for it. */
+export interface Reconciliation {
+	id: string;
+	resource: { id: string; name: string; color: string };
+	source: 'csv' | 'idp';
+	filename: string;
+	runBy: { id: string; name: string; email: string } | null;
+	createdAt: string;
+	counts: ReconciliationCounts;
+	/** Findings (anything but matched) not yet resolved. */
+	unresolved: number;
+}
+
+export interface ReconciliationItem {
+	id: string;
+	account: string;
+	user: { id: string; name: string; email: string; member: 'active' | 'deactivated' | null } | null;
+	grantId: string | null;
+	roleId: string | null;
+	status: ReconciliationStatus;
+	/** The level in the system (unknown, mismatch) or in ac·modern (missing). */
+	level: string;
+	detail: string;
+	resolution: ReconciliationResolution | null;
+	resolvedBy: string | null;
+	resolvedAt: string | null;
+	note: string;
+}

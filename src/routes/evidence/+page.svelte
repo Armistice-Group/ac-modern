@@ -1,6 +1,7 @@
 <script lang="ts">
 	import LeaversCard from './LeaversCard.svelte';
 	import ReviewsCard from './ReviewsCard.svelte';
+	import ReconciliationsBox from './ReconciliationsBox.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Download, Printer, ShieldAlert, FileCheck2, UserPlus, ArrowLeftRight, TriangleAlert, Copy, Inbox, MinusCircle } from '@lucide/svelte';
@@ -225,6 +226,7 @@
 		<LeaversCard rows={data.leavers.rows} slaHours={data.leavers.slaHours} csvHref="/api/evidence/leavers?from={data.period.from}&to={data.period.to}" />
 		<ReviewsCard reviews={data.reviews} />
 	</div>
+	<ReconciliationsBox runs={data.reconciliations} />
 
 	<section class="card p-5">
 		<div class="flex items-start justify-between gap-4">

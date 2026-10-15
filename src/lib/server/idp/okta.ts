@@ -1,6 +1,6 @@
 import type { DirectoryGroup, DirectoryUser } from '../directory.ts';
 import type { ScannedApp } from '#lib/types.ts';
-import { type Fetch, jsonOrThrow, ProviderError } from './http.ts';
+import { type Fetch, jsonOrThrow, type MemberAccount, ProviderError } from './http.ts';
 
 /** Okta's Users and Groups APIs, with an API token (read-only admin is enough for pulls). */
 export interface OktaConfig {
@@ -144,4 +144,19 @@ export async function oktaApps(cfg: OktaConfig, f: Fetch = fetch): Promise<Scann
 		out.push({ ref: `okta:app:${app.id}`, name: app.label, url: app._links?.appLinks?.[0]?.href ?? '', description: '', openToAll: false, levels });
 	}
 	return out;
+}
+
+// ── Reconciliation ───────────────────────────────────────────────────────────
+
+/** Who an access level's group or app assignment includes right now. */
+export async function oktaMembers(cfg: OktaConfig, level: OktaLevel, f: Fetch = fetch): Promise<MemberAccount[]> {
+	if (level.type === 'okta_group') {
+		const users = await pages<OUser>(cfg, f, `/api/v1/groups/${encodeURIComponent(level.id)}/users?limit=200`);
+		return users.map((u) => ({ email: (u.profile.email ?? u.profile.login).toLowerCase(), login: u.profile.login, name: u.profile.displayName || [u.profile.firstName, u.profile.lastName].filter(Boolean).join(' ') }));
+	}
+	const assigned = await pages<{ credentials?: { userName?: string }; _embedded?: { user?: OUser } }>(cfg, f, `/api/v1/apps/${encodeURIComponent(level.id)}/users?limit=200&expand=user`);
+	return assigned.map((a) => {
+		const p = a._embedded?.user?.profile;
+		return { email: (p?.email ?? p?.login ?? a.credentials?.userName ?? '').toLowerCase() || undefined, login: a.credentials?.userName, name: p?.displayName };
+	});
 }

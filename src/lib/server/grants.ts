@@ -133,6 +133,38 @@ export async function recordGrant(
 	});
 }
 
+/**
+ * Closes a grant record without provisioning anything: the system says they don't have
+ * it (found by a reconciliation), so the record is corrected, with the reason.
+ */
+export async function closeGrantRecord(db: Db, actor: Actor & { userId: string }, grantId: string, reason: string) {
+	const g = await db.get<{ id: string; status: string; resource_id: string; role_id: string; user_id: string }>(
+		'SELECT id, status, resource_id, role_id, user_id FROM grants WHERE org_id = ? AND id = ?',
+		[actor.orgId, grantId]
+	);
+	if (!g) throw badRequest('That access record doesn’t exist');
+	if (reason.trim().length < 3) throw badRequest('Say why the record is being closed');
+	if (g.status === 'revoked') throw conflict('That access record is already closed');
+	if (g.status === 'pending_revoke') {
+		const open = await db.get<{ number: number }>("SELECT number FROM requests WHERE grant_id = ? AND kind = 'revoke' AND status = 'pending_fulfillment'", [g.id]);
+		throw conflict(`A removal is already under way${open ? ` (#${open.number})` : ''}; mark it done instead`);
+	}
+	const resource = await getResource(db, actor.orgId, g.resource_id);
+	const role = await getRole(db, actor.orgId, g.resource_id, g.role_id);
+	const who = await db.get<{ name: string; email: string }>('SELECT name, email FROM users WHERE id = ?', [g.user_id]);
+	await db.tx(async (tx) => {
+		await tx.run("UPDATE grants SET status = 'revoked', revoked_at = ? WHERE id = ?", [now(), g.id]);
+		await record(tx, {
+			orgId: actor.orgId,
+			actorId: actor.userId,
+			action: 'grant.closed',
+			subject: resource.name,
+			summary: `Closed the record of ${who?.name || who?.email}’s ${resource.name} (${role.name}): “${reason.trim()}”`,
+			data: { grantId: g.id, reason: reason.trim() }
+		});
+	});
+}
+
 /** Deactivates a member and opens removal requests for everything they hold. */
 export async function offboard(db: Db, actor: Actor, userId: string, note: string, fx: Effects, reason: 'offboarding' | 'directory' = 'offboarding', leftAt: string | null = null) {
 	if (userId === actor.userId) throw badRequest('You can’t offboard yourself');

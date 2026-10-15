@@ -1,0 +1,38 @@
+---
+title: Reconciling access
+description: Compare each system's real user list with the access ac·modern records, and resolve every difference.
+icon: git-compare-arrows
+---
+
+ac·modern knows about access that was requested, recorded or detected through it. A **reconciliation** checks that against the system itself: every account in the system should be approved, and every record in ac·modern should be a real account. Auditors call this *completeness* (SOC 2 CC6.2 and CC6.3, ISO 27001 A.5.18), and they usually ask for it alongside access reviews.
+
+## Run one
+
+Open a system under **Resources** and click **Reconcile** (admins). Then either:
+
+- **Upload the user list.** Export the users from the system's admin console as CSV and upload or paste it. ac·modern finds the email or username column by its header (*Email*, *User principal name*, *Username*, *Login*…), plus a role or level column if there is one (*Role*, *Access level*, *Permission*, *Group*…), so levels are compared too. A file with no header works if it's a column of emails or a one-column list of usernames. Comma, semicolon and tab separators all work.
+- **Pull from the integration.** If the system's levels are set up through Okta, Authentik, Entra ID, Google Workspace or GitHub, ac·modern reads who's in each level's group, app assignment or team right now. Nothing is changed in the IdP.
+
+Accounts are matched to people by email, or by their GitHub username (set under **Account**). Several rows for the same person count as one.
+
+## What it finds
+
+| Finding | Means | Ways to resolve |
+|---|---|---|
+| **Matched** | The account and level match the record | Nothing to do |
+| **In the system, not in ac·modern** | An account nobody approved here: a person without recorded access, someone who's been deactivated, or someone who isn't a member at all | **Record as existing access** (members only, with who approved it), **Removed or fixed in the system**, or **Service or shared account** (say who owns it) |
+| **In ac·modern, not in the system** | A record with no account behind it | **Close the record** (no change to the system), or **Keep as is** (e.g. the export leaves some users out) |
+| **Different level** | They have a different level in the system than the record says | **Record** the level they have, **Removed or fixed in the system**, or **Keep as is** |
+
+Every resolution needs a reason. Deactivated people who still have an account are called out: that's the finding auditors look for most.
+
+## Evidence
+
+- Each reconciliation is kept, with every account compared and how each finding was resolved, by whom and when. **Export evidence** downloads it as CSV, and the export is logged.
+- The audit log records each run (`reconciliation.run`), each resolution (`reconciliation.resolved`), access recorded from it (`grant.recorded`) and records closed (`grant.closed`).
+- **Audit evidence** lists the reconciliations in the period, with unresolved findings flagged.
+- The API has `GET /api/v1/reconciliations` and `/reconciliations/{id}`.
+
+<Tip>
+  Reconcile each in-scope system at least as often as you review access, for example quarterly, and right after importing existing access at go-live.
+</Tip>

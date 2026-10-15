@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { Archive, ArchiveRestore, ExternalLink, Plus } from '@lucide/svelte';
+	import { Archive, ArchiveRestore, ExternalLink, GitCompareArrows, Plus } from '@lucide/svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import ResourceForm from '#lib/components/ResourceForm.svelte';
 	import RequestRow from '#lib/components/RequestRow.svelte';
@@ -42,6 +42,7 @@
 		{#if data.admin}
 			{#if r.archived}<button class="btn btn-secondary" onclick={() => archive(false)}><ArchiveRestore />Restore</button>
 			{:else}<button class="btn btn-ghost" onclick={() => archive(true)}><Archive />Archive</button>{/if}
+			<a href="/resources/{r.id}/reconcile" class="btn btn-ghost"><GitCompareArrows />Reconcile</a>
 			<a href="/access?record=1" class="btn btn-secondary"><Plus />Record access</a>
 		{/if}
 	{/snippet}

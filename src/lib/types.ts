@@ -54,6 +54,8 @@ export interface OrgSettings {
 	sessionIdleMinutes?: number;
 	/** Changes to approval controls need a second admin to approve them. */
 	requireSecondAdmin?: boolean;
+	/** Password sign-ins need two-step verification (TOTP). SSO sign-ins rely on the IdP's MFA. Default off. */
+	requireMfa?: boolean;
 }
 
 export interface SessionUser {
@@ -83,6 +85,10 @@ export interface Person {
 	status: 'active' | 'deactivated';
 	joinedAt: string;
 	lastLoginAt: string | null;
+	/** Two-step verification (TOTP) is on for password sign-in. */
+	mfa: boolean;
+	/** How they last signed in: password, password+totp or sso ('' if never). */
+	lastLoginMethod: string;
 }
 
 export interface ResourceRole {

@@ -491,5 +491,14 @@ CREATE TABLE audit_stream (
 	updated_at TEXT NOT NULL
 );
 CREATE INDEX events_org_at_id ON events(org_id, at, id)
+`,
+	// Two-step verification (TOTP) for password sign-in, and how each person last signed in.
+	`
+ALTER TABLE users ADD COLUMN totp_secret TEXT;
+ALTER TABLE users ADD COLUMN totp_pending TEXT;
+ALTER TABLE users ADD COLUMN totp_enabled_at TEXT;
+ALTER TABLE users ADD COLUMN totp_last_step INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN mfa_recovery TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE users ADD COLUMN last_login_method TEXT NOT NULL DEFAULT ''
 `
 ];

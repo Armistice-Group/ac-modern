@@ -21,6 +21,7 @@
 	let sessionMax = $state(720);
 	let sessionIdle = $state(0);
 	let secondAdmin = $state(false);
+	let requireMfa = $state(false);
 	let busy = $state<string | null>(null);
 	$effect(() => {
 		name = data.name;
@@ -33,6 +34,7 @@
 		sessionMax = data.sessionMaxHours;
 		sessionIdle = data.sessionIdleMinutes;
 		secondAdmin = data.requireSecondAdmin;
+		requireMfa = data.requireMfa;
 	});
 
 	async function save(section: string, body: Record<string, unknown>) {
@@ -154,6 +156,20 @@
 					</select>
 				</div>
 			</div>
+		</div>
+	</section>
+
+	<section class="card p-5" id="sign-in">
+		<h2 class="text-[0.9375rem] font-semibold tracking-tight">Sign-in security</h2>
+		<div class="mt-4 flex items-start justify-between gap-4">
+			<div>
+				<p class="text-[0.8125rem] font-medium">Require two-step verification for password sign-in</p>
+				<p class="text-xs text-muted-foreground">
+					People who sign in with a password must use an authenticator app code too; anyone without one is asked to set it up before they can continue. Single sign-on relies on your identity provider’s MFA.
+					{#if data.mfaCoverage?.total}{data.mfaCoverage.enabled} of {data.mfaCoverage.total} members with a password have it on.{/if}
+				</p>
+			</div>
+			<Switch bind:checked={requireMfa} label="Require two-step verification" onchange={(v) => save('mfa', { requireMfa: v })} />
 		</div>
 	</section>
 

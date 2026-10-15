@@ -1,9 +1,10 @@
 import type { Cookies } from '@sveltejs/kit';
-import { addMember, countOrgs, createOrg, createSession, createUser, deleteSession, getOrg, membership, membershipsOf, orgSettings, SESSION_TTL_MS, sessionByToken, sessionWithinLimits, setSessionOrg } from './accounts.ts';
+import { addMember, type AuthMethod, countOrgs, createOrg, createSession, createUser, deleteSession, getOrg, membership, membershipsOf, orgSettings, SESSION_TTL_MS, sessionByToken, sessionWithinLimits, setSessionOrg } from './accounts.ts';
 import { config, isCloud } from './config.ts';
 import { hashPassword } from './crypto.ts';
 import { db } from './db.ts';
 import { record } from './events.ts';
+import { hasMfa } from './mfa.ts';
 import { ssoSettings } from './sso.ts';
 
 export const SESSION_COOKIE = 'acm_session';
@@ -47,6 +48,7 @@ export async function authenticate(cookies: Cookies, locals: App.Locals): Promis
 	locals.orgs = [];
 	locals.sessionId = null;
 	locals.ssoRequired = false;
+	locals.mfaSetupRequired = false;
 	const token = cookies.get(SESSION_COOKIE);
 	const s = token ? await sessionByToken(d, token) : undefined;
 	if (!s) {
@@ -76,11 +78,13 @@ export async function authenticate(cookies: Cookies, locals: App.Locals): Promis
 			const sso = await ssoSettings(d, orgId);
 			if (sso?.required) locals.ssoRequired = true;
 		}
+		// Orgs that require two-step verification send password users without it to set it up.
+		if (s.auth_method === 'password' && (await orgSettings(d, orgId)).requireMfa && !(await hasMfa(d, s.user_id))) locals.mfaSetupRequired = true;
 	}
 	return 'authenticated';
 }
 
-export async function startSession(cookies: Cookies, userId: string, orgId: string | null, secure: boolean, method: 'password' | 'sso' = 'password') {
+export async function startSession(cookies: Cookies, userId: string, orgId: string | null, secure: boolean, method: AuthMethod = 'password') {
 	const token = await createSession(await db(), userId, orgId, method);
 	cookies.set(SESSION_COOKIE, token, {
 		path: '/',

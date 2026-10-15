@@ -20,7 +20,7 @@ export type ChangeKind = PendingChange['kind'];
 type Action = PendingChange['action'];
 
 /** Settings that are approval controls; the rest (name, Slack…) apply straight away. */
-export const CONTROL_SETTINGS: (keyof OrgSettings)[] = ['requirePrivilegedApproval', 'allowAdminOverride', 'defaultApproval', 'removalSlaHours', 'sessionMaxHours', 'sessionIdleMinutes', 'requireSecondAdmin'];
+export const CONTROL_SETTINGS: (keyof OrgSettings)[] = ['requirePrivilegedApproval', 'allowAdminOverride', 'defaultApproval', 'removalSlaHours', 'sessionMaxHours', 'sessionIdleMinutes', 'requireSecondAdmin', 'requireMfa'];
 
 export async function secondAdminRequired(db: Db, orgId: string): Promise<boolean> {
 	return !!(await orgSettings(db, orgId)).requireSecondAdmin;
@@ -54,6 +54,7 @@ export function describeSettings(p: Partial<OrgSettings>): string {
 	if (p.removalSlaHours !== undefined) parts.push(`removal target ${p.removalSlaHours} hours`);
 	if (p.sessionMaxHours !== undefined) parts.push(`sessions last ${p.sessionMaxHours} hours`);
 	if (p.sessionIdleMinutes !== undefined) parts.push(p.sessionIdleMinutes ? `idle sessions end after ${p.sessionIdleMinutes} minutes` : 'no idle timeout');
+	if (p.requireMfa !== undefined) parts.push(`two-step verification ${p.requireMfa ? 'required' : 'not required'} for password sign-in`);
 	if (p.requireSecondAdmin !== undefined) parts.push(`control changes ${p.requireSecondAdmin ? 'need' : 'don’t need'} a second admin`);
 	return parts.join(', ');
 }

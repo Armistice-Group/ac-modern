@@ -31,6 +31,7 @@ export const PATCH = handler(async (event) => {
 	const controls: Partial<OrgSettings> = {};
 	if (b.requirePrivilegedApproval !== undefined) controls.requirePrivilegedApproval = b.requirePrivilegedApproval === true;
 	if (b.allowAdminOverride !== undefined) controls.allowAdminOverride = b.allowAdminOverride === true;
+	if (b.requireMfa !== undefined) controls.requireMfa = b.requireMfa === true;
 	if (b.defaultApproval !== undefined) {
 		if (!APPROVAL_POLICIES.includes(b.defaultApproval as ApprovalPolicy)) throw badRequest('Unknown approval policy');
 		controls.defaultApproval = b.defaultApproval as ApprovalPolicy;
@@ -47,7 +48,7 @@ export const PATCH = handler(async (event) => {
 	const current = await orgSettings(d, c.org.id);
 	if (controls.requireSecondAdmin && !current.requireSecondAdmin && (await adminIds(d, c.org.id)).length < 2) throw badRequest('Make someone else an admin first: there has to be a second admin to approve changes.');
 	// Turning two-person control on only tightens things, so it never waits.
-	const tightening = Object.keys(controls).length === 1 && controls.requireSecondAdmin === true;
+	const tightening = Object.keys(controls).length === 1 && (controls.requireSecondAdmin === true || controls.requireMfa === true);
 	const fx = effects();
 	const r = await changeOrPropose(d, c.org.id, c.user.id, { kind: 'settings', action: 'update', targetId: null, payload: controls, summary: `Change approval controls: ${describeSettings(controls)}` }, fx, !tightening);
 	await flush(d, c.org.id, fx, event.locals.origin);

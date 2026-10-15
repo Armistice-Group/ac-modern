@@ -696,6 +696,17 @@
 							"string",
 							"null"
 						]
+					},
+					"mfa_enabled": {
+						"type": "boolean"
+					},
+					"last_sign_in_method": {
+						"enum": [
+							"password",
+							"password+totp",
+							"sso",
+							null
+						]
 					}
 				}
 			},

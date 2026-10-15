@@ -10,7 +10,7 @@ ac·modern doesn't make you compliant: your auditor tests your controls, not you
 
 <AccordionGroup>
   <Accordion title="CC6.1: Logical access security">
-    A catalog of systems with named owners and defined access levels, privileged levels marked, single sign-on with SSO-required mode, and an audit log of access changes.
+    A catalog of systems with named owners and defined access levels, privileged levels marked, single sign-on with SSO-required mode, and an audit log of access changes. Password sign-ins can require [two-step verification](/identity/two-step-verification) (TOTP), and `/api/v1/users` reports who has it.
   </Accordion>
   <Accordion title="CC6.2: Registering and authorising users before granting access">
     Every grant starts as a request with a justification and documented approval (approver, capacity, time) before setup. New-hire access is requested through onboarding. Removals on offboarding and expiry are recorded. Evidence: the population CSV and tickets.
@@ -29,7 +29,7 @@ ac·modern doesn't make you compliant: your auditor tests your controls, not you
 |---|---|
 | **A.5.15** Access control | Per-system rules: owner, approval rule, levels, durations |
 | **A.5.16** Identity management | Directory sync from your IdP; offboarding when the IdP deactivates someone |
-| **A.5.17** Authentication information | Only partly: ac·modern delegates sign-in to your IdP with SSO. It doesn't manage passwords for other systems. |
+| **A.5.17** Authentication information | Only partly: ac·modern delegates sign-in to your IdP with SSO, and can require two-step verification for its own password sign-ins. It doesn't manage passwords for other systems. |
 | **A.5.18** Access rights | Requests, approvals, setup, expiry, removal and periodic reviews, all recorded |
 | **A.8.15** Logging | Audit log of access and control changes, daily tamper-evident seals, streaming to your log store |
 | **A.8.2** Privileged access rights | Privileged levels, owner approval, short durations, privileged-only evidence |

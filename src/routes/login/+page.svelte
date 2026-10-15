@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { KeyRound, LoaderCircle } from '@lucide/svelte';
+	import { KeyRound, LoaderCircle, ShieldCheck } from '@lucide/svelte';
 	import AuthCard from '#lib/components/AuthCard.svelte';
 	import AuthShell from '#lib/components/AuthShell.svelte';
 	import { api, ApiError, errorMessage } from '#lib/client/api.ts';
@@ -24,15 +24,43 @@
 	});
 	const withNext = (href: string) => `${href}${href.includes('?') ? '&' : '?'}next=${encodeURIComponent(next)}`;
 
+	// Second step: a code from the authenticator app (or a recovery code).
+	let ticket = $state('');
+	let code = $state('');
+	let useRecovery = $state(false);
+
 	async function login(email: string, password: string) {
 		try {
-			await api.post('/api/auth/login', { email, password });
+			const r = await api.post<{ mfa?: boolean; ticket?: string }>('/api/auth/login', { email, password });
+			if (r.mfa && r.ticket) {
+				ticket = r.ticket;
+				code = '';
+				error = '';
+				return;
+			}
 			await invalidateAll();
 			goto(next);
 		} catch (err) {
 			const sso = err instanceof ApiError ? (err.detail as { sso?: string } | undefined)?.sso : undefined;
 			if (sso) location.href = withNext(sso);
 			return errorMessage(err);
+		}
+	}
+
+	async function verify(e: SubmitEvent) {
+		e.preventDefault();
+		busy = true;
+		error = '';
+		try {
+			const r = await api.post<{ recovery?: boolean }>('/api/auth/mfa', { ticket, code });
+			if (r.recovery) sessionStorage.setItem('acm-recovery-used', '1');
+			await invalidateAll();
+			goto(next);
+		} catch (err) {
+			const expired = err instanceof ApiError && err.status === 401 && /again/.test(errorMessage(err));
+			error = errorMessage(err);
+			if (expired) ticket = '';
+			busy = false;
 		}
 	}
 
@@ -52,7 +80,29 @@
 
 <svelte:head><title>Sign in · ac·modern</title></svelte:head>
 
-{#if ssoMode}
+{#if ticket}
+	<AuthShell title="Two-step verification" subtitle={useRecovery ? 'Enter one of your recovery codes. Each works once.' : 'Enter the 6-digit code from your authenticator app.'}>
+		<form onsubmit={verify} class="space-y-3">
+			<!-- svelte-ignore a11y_autofocus -->
+			<input
+				class="input text-center font-mono text-base tracking-[0.3em]"
+				inputmode={useRecovery ? 'text' : 'numeric'}
+				autocomplete="one-time-code"
+				placeholder={useRecovery ? 'xxxxx-xxxxx' : '123456'}
+				maxlength={useRecovery ? 11 : 6}
+				bind:value={code}
+				required
+				autofocus
+			/>
+			<button class="btn btn-primary w-full" disabled={busy}>{#if busy}<LoaderCircle class="animate-spin" />{:else}<ShieldCheck />{/if}Verify</button>
+			{#if error}<p class="text-center text-xs text-danger">{error}</p>{/if}
+		</form>
+		<div class="mt-4 flex justify-between text-xs">
+			<button class="text-primary hover:underline" onclick={() => ((useRecovery = !useRecovery), (code = ''), (error = ''))}>{useRecovery ? 'Use a code from the app' : 'Use a recovery code'}</button>
+			<button class="text-muted-foreground hover:text-foreground" onclick={() => ((ticket = ''), (error = ''))}>Start over</button>
+		</div>
+	</AuthShell>
+{:else if ssoMode}
 	<AuthShell title="Sign in with SSO" subtitle="Enter your work email and we’ll send you to your company’s sign-in.">
 		<form onsubmit={lookup} class="space-y-3">
 			<!-- svelte-ignore a11y_autofocus -->

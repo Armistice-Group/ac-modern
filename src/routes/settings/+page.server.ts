@@ -20,6 +20,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sessionMaxHours: s.sessionMaxHours ?? 720,
 		sessionIdleMinutes: s.sessionIdleMinutes ?? 0,
 		requireSecondAdmin: !!s.requireSecondAdmin,
+		requireMfa: !!s.requireMfa,
+		mfaCoverage: await d.get<{ total: number; enabled: number }>(
+			"SELECT CAST(COUNT(*) AS INTEGER) AS total, CAST(COALESCE(SUM(CASE WHEN u.totp_enabled_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS INTEGER) AS enabled FROM members m JOIN users u ON u.id = m.user_id WHERE m.org_id = ? AND m.status = 'active' AND u.password_hash IS NOT NULL",
+			[c.org.id]
+		),
 		smtp: !!config.smtp,
 		database: d.kind,
 		mode: config.mode

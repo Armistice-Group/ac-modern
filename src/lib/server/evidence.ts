@@ -183,7 +183,7 @@ export async function ticket(db: Db, orgId: string, number: number): Promise<Tic
 export async function outOfProcess(db: Db, orgId: string, from: string, to: string) {
 	const rows = await db.all<{ id: string; at: string; action: string; summary: string; data: string; actor_name: string | null; actor_email: string | null }>(
 		`SELECT e.id, e.at, e.action, e.summary, e.data, u.name AS actor_name, u.email AS actor_email FROM events e LEFT JOIN users u ON u.id = e.actor_id
-		 WHERE e.org_id = ? AND e.at >= ? AND e.at < ? AND e.action IN ('grant.recorded', 'grant.detected', 'member.updated', 'member.joined', 'member.offboarded', 'settings.updated', 'resource.updated', 'rule.created', 'rule.updated', 'rule.deleted', 'review_policy.created', 'review_policy.updated', 'review_policy.deleted', 'change.requested', 'change.approved', 'change.rejected')
+		 WHERE e.org_id = ? AND e.at >= ? AND e.at < ? AND e.action IN ('grant.recorded', 'grant.detected', 'member.updated', 'member.joined', 'member.offboarded', 'settings.updated', 'resource.updated', 'rule.created', 'rule.updated', 'rule.deleted', 'review_policy.created', 'review_policy.updated', 'review_policy.deleted', 'change.requested', 'change.approved', 'change.rejected', 'mfa.reset')
 		 ORDER BY e.at DESC`,
 		[orgId, from, to]
 	);
@@ -191,7 +191,7 @@ export async function outOfProcess(db: Db, orgId: string, from: string, to: stri
 	return {
 		recorded: list.filter((e) => e.action === 'grant.recorded' || e.action === 'grant.detected'),
 		adminChanges: list.filter((e) => e.action === 'member.updated' && e.data.role !== undefined),
-		controlChanges: list.filter((e) => e.action === 'settings.updated' || e.action.startsWith('rule.') || e.action.startsWith('review_policy.') || e.action.startsWith('change.') || (e.action === 'resource.updated' && Object.keys(e.data).some((k) => ['approval', 'ownerId', 'privileged'].includes(k))))
+		controlChanges: list.filter((e) => e.action === 'settings.updated' || e.action.startsWith('rule.') || e.action.startsWith('review_policy.') || e.action.startsWith('change.') || e.action === 'mfa.reset' || (e.action === 'resource.updated' && Object.keys(e.data).some((k) => ['approval', 'ownerId', 'privileged'].includes(k))))
 	};
 }
 

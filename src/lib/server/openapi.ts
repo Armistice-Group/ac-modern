@@ -60,7 +60,7 @@ export function openapi(origin: string) {
 		components: {
 			securitySchemes: { bearer: { type: 'http', scheme: 'bearer' } },
 			schemas: {
-				User: { type: 'object', properties: { id: { type: 'string' }, email: { type: 'string' }, name: { type: 'string' }, title: { type: 'string' }, role: { enum: ['owner', 'admin', 'member'] }, status: { enum: ['active', 'deactivated'] }, manager: person, source: { enum: ['manual', 'directory'] }, joined_at: { type: 'string' }, last_login_at: { type: ['string', 'null'] } } },
+				User: { type: 'object', properties: { id: { type: 'string' }, email: { type: 'string' }, name: { type: 'string' }, title: { type: 'string' }, role: { enum: ['owner', 'admin', 'member'] }, status: { enum: ['active', 'deactivated'] }, manager: person, source: { enum: ['manual', 'directory'] }, joined_at: { type: 'string' }, last_login_at: { type: ['string', 'null'] }, mfa_enabled: { type: 'boolean' }, last_sign_in_method: { enum: ['password', 'password+totp', 'sso', null] } } },
 				Resource: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string' }, owner: person, approval_policy: { enum: ['none', 'manager', 'approvers', 'manager_then_approvers'] }, access_levels: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string' }, privileged: { type: 'boolean' } } } } } },
 				Grant: { type: 'object', properties: { id: { type: 'string' }, user: person, resource: { type: 'object' }, access_level: { type: 'object' }, status: { enum: ['active', 'pending_revoke', 'revoked'] }, source: { enum: ['request', 'manual', 'import', 'idp'] }, request_number: { type: ['integer', 'null'] }, granted_at: { type: 'string' }, expires_at: { type: ['string', 'null'] } } },
 				Request: {

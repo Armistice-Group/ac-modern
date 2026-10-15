@@ -116,7 +116,10 @@
 							<td class="px-4 py-2.5"><span class="badge {p.role !== 'member' ? 'badge-primary' : ''}">{ROLE_LABEL[p.role]}</span></td>
 							<td class="px-4 py-2.5 text-xs text-muted-foreground">{m ? displayName(m) : '—'}</td>
 							<td class="px-4 py-2.5 text-right font-mono text-xs tabular-nums">{data.grants[p.id] ?? 0}</td>
-							<td class="px-4 py-2.5 text-xs text-muted-foreground">{p.lastLoginAt ? ago(p.lastLoginAt) : 'Never'}</td>
+							<td class="px-4 py-2.5 text-xs text-muted-foreground">
+								{p.lastLoginAt ? ago(p.lastLoginAt) : 'Never'}
+								{#if p.lastLoginMethod === 'sso'}<span class="badge ml-1">SSO</span>{:else if p.mfa}<span class="badge badge-success ml-1" title="Two-step verification on">2FA</span>{:else if p.lastLoginMethod === 'password'}<span class="badge badge-warning ml-1" title="Signs in with a password only">No 2FA</span>{/if}
+							</td>
 						</tr>
 					{/each}
 				</tbody>

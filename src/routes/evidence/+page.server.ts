@@ -4,6 +4,7 @@ import { EXCEPTIONS, evidenceRows, outOfProcess } from '#lib/server/evidence.ts'
 import { adminCtx } from '#lib/server/http.ts';
 import { period } from '#lib/server/period.ts';
 import { listResources } from '#lib/server/resources.ts';
+import { describeRule, listRules } from '#lib/server/rules.ts';
 import type { RequestCategory } from '#lib/types.ts';
 import type { PageServerLoad } from './$types';
 
@@ -43,6 +44,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			privilegedLevels: resources.flatMap((r) => r.roles.filter((x) => x.privileged).map((x) => `${r.name} ${x.name}`)),
 			requirePrivilegedApproval: settings.requirePrivilegedApproval !== false,
 			allowAdminOverride: !!settings.allowAdminOverride,
+			autoRules: await (async () => {
+				const out: string[] = [];
+				for (const r of (await listRules(d, c.org.id)).filter((x) => x.enabled)) out.push(`“${r.name}” (${await describeRule(d, c.org.id, r)})`);
+				return out;
+			})(),
 			orgName: c.org.name
 		}
 	};

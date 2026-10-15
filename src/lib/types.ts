@@ -118,6 +118,8 @@ export interface AccessRequest {
 	privileged: boolean;
 	/** The approval policy in force when the request was made. */
 	policy: ApprovalPolicy;
+	/** The auto-approval rule that approved it, as it was at the time. */
+	autoRule: AutoRuleMatch | null;
 	batchId: string | null;
 	status: RequestStatus;
 	step: number;
@@ -180,6 +182,18 @@ export interface ReviewItem {
 	decidedAt: string | null;
 }
 
+/** A member's token for MCP clients. */
+export interface PersonalToken {
+	id: string;
+	name: string;
+	prefix: string;
+	canApprove: boolean;
+	createdAt: string;
+	expiresAt: string | null;
+	lastUsedAt: string | null;
+	user: { id: string; name: string; email: string };
+}
+
 /** An API error body: `{ message, hint? }`. */
 export interface ProblemInfo {
 	message: string;
@@ -193,6 +207,36 @@ export interface Approval {
 	approver: { id: string | null; name: string; email: string };
 	comment: string;
 	at: string;
+}
+
+/**
+ * Auto-approval: requests that match every condition skip approval. Empty lists mean
+ * "any". Privileged levels never match.
+ */
+export interface ApprovalRule {
+	id: string;
+	name: string;
+	enabled: boolean;
+	/** Systems it covers (empty: all). */
+	resourceIds: string[];
+	/** Access levels it covers, within those systems (empty: every non-privileged level). */
+	roleIds: string[];
+	/** Directory groups the person must be in, any of them (empty: no group condition). */
+	groupIds: string[];
+	/** People it covers, in addition to the groups (empty with no groups: everyone). */
+	userIds: string[];
+	/** The request must end within this many days (null: any duration, including permanent). */
+	maxDays: number | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
+/** What a request records about the rule that approved it. */
+export interface AutoRuleMatch {
+	id: string;
+	name: string;
+	/** Why it matched, in words, e.g. "in Engineering; 7 days (rule allows up to 14)". */
+	reason: string;
 }
 
 /** An app found in an identity provider, as the scan reports it (before matching people). */

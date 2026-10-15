@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		directory,
 		slack: slack?.botToken ? { team: slack.teamName ?? '' } : null,
 		usage: Object.fromEntries(usage.map((u) => [u.integration, Number(u.n)])),
-		slackEventsUrl: `${locals.origin}/api/slack/interactions`,
+		slackBase: `${locals.origin}/api/slack/`,
 		slackShared: !!config.slackApp
 	};
 };

@@ -195,13 +195,17 @@
 					<dd title={r.closedAt}>{dateTime(r.closedAt)}</dd>
 				{/if}
 				<dt class="text-muted-foreground">Approval rule</dt>
-				<dd>{APPROVAL_LABEL[r.policy]}{#if r.privileged && r.policy !== data.resource.approval} <span class="text-muted-foreground">(privileged)</span>{/if}</dd>
+				{#if r.autoRule}
+					<dd title={r.autoRule.reason}>Auto-approved by <a class="text-primary hover:underline" href="/settings/approvals">{r.autoRule.name}</a></dd>
+				{:else}
+					<dd>{APPROVAL_LABEL[r.policy]}{#if r.privileged && r.policy !== data.resource.approval} <span class="text-muted-foreground">(privileged)</span>{/if}</dd>
+				{/if}
 				{#if data.evidence.snapshot.manager}
 					<dt class="text-muted-foreground">Manager then</dt>
 					<dd class="truncate">{data.evidence.snapshot.manager.name || data.evidence.snapshot.manager.email}</dd>
 				{/if}
 				<dt class="text-muted-foreground">Set up</dt>
-				<dd>{data.resource.fulfillment === 'webhook' ? 'Webhook' : 'By hand'}</dd>
+				<dd>{data.resource.fulfillment === 'webhook' ? 'Webhook' : data.resource.fulfillment === 'integration' ? 'Automatically' : 'By hand'}</dd>
 			</dl>
 			{#if data.can.cancel}
 				<div class="p-3">

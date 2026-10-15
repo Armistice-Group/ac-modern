@@ -1,0 +1,83 @@
+---
+title: AI assistants (MCP)
+description: Request access, check on requests and approve from Claude, Cursor or any MCP client.
+icon: bot
+---
+
+ac·modern is an [MCP](https://modelcontextprotocol.io) server. Connect an AI assistant and you can ask it things like:
+
+- *"Get me read access to Grafana for a week, I'm on call."*
+- *"What's waiting on me?"*
+- *"Approve #42."*
+- *"Who changed the approval rules last month?"* (admins)
+
+The assistant acts as **you**, with your permissions, through the same workflow as the web. Everything it does is in the audit log as done by you **via MCP**.
+
+## Connect
+
+<Steps>
+  <Step title="Make a personal token">
+    **Account → AI assistants → New token.** Name it after the client (*Claude Code*), pick when it expires, and decide whether it **can approve and deny**. Leave that off unless you want to approve from the assistant: without it, the token can request access and read, but not decide.
+  </Step>
+  <Step title="Add the server to your client">
+    The dialog shows the command for your client. The server is at `https://<your ac·modern>/mcp` (Streamable HTTP), with the token as a bearer header.
+
+    <Tabs>
+      <Tab title="Claude Code">
+        ```sh
+        claude mcp add --transport http ac-modern https://access.example.com/mcp \
+          --header "Authorization: Bearer acm_pat_…"
+        ```
+      </Tab>
+      <Tab title="Claude Desktop">
+        In **Settings → Developer → Edit config**, add to `claude_desktop_config.json` and restart Claude:
+
+        ```json
+        {
+          "mcpServers": {
+            "ac-modern": {
+              "command": "npx",
+              "args": ["-y", "mcp-remote", "https://access.example.com/mcp", "--header", "Authorization: Bearer acm_pat_…"]
+            }
+          }
+        }
+        ```
+      </Tab>
+      <Tab title="Other clients">
+        Any client that supports Streamable HTTP with a custom header:
+
+        - **URL:** `https://access.example.com/mcp`
+        - **Header:** `Authorization: Bearer acm_pat_…`
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+## Tools
+
+| Tool | What it does | Needs |
+|---|---|---|
+| `list_systems` | Systems you can request, their levels (privileged marked), approval rule, and what you hold | |
+| `request_access` | Requests a system and level, with a reason and duration, for you or (managers, admins) someone else | |
+| `my_access` | What you hold now, and when it ends | |
+| `my_requests` | Your requests and their status | |
+| `get_request` | One request: reason, each approval with the approver's capacity, timeline | You can see it |
+| `pending_approvals` | Requests waiting for your approval, and setup tasks | |
+| `approve_request` / `deny_request` | Decide a request waiting on you; a denial needs a reason | **Can approve and deny** |
+| `cancel_request` | Withdraw your own request | |
+| `audit_log` | Search the audit log | Admin |
+
+The server tells the assistant never to approve or deny unless you've asked about that specific request number, and approval and denial are marked as consequential so clients ask you to confirm. The checks themselves are the same as on the web: you can only approve requests waiting on you, never your own.
+
+## Managing tokens
+
+- Tokens are stored hashed and shown once.
+- They stop working when they expire, when they're revoked, or when you're deactivated in ac·modern.
+- Admins see every member's tokens under **Settings → API → Personal tokens**, and can revoke any of them.
+- Creating and revoking tokens is in the audit log.
+
+Personal tokens can't read the organisation-wide [API](/api-reference/introduction). That needs an org token, made by an admin.
+
+## Behind a proxy
+
+`/mcp` must be reachable by the client without signing in to your proxy, like the API and SCIM. See [Reverse proxy](/self-hosting/reverse-proxy).

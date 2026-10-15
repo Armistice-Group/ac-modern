@@ -9,7 +9,22 @@ export const init: ServerInit = () => {
 	startJobs();
 };
 
-const PUBLIC = ['/login', '/setup', '/signup', '/invite/', '/forgot-password', '/reset-password/', '/auth/oidc/', '/api/auth/', '/api/health', '/api/slack/interactions', '/api/slack/oauth', '/api/billing/webhook'];
+const PUBLIC = [
+	'/login',
+	'/setup',
+	'/signup',
+	'/invite/',
+	'/forgot-password',
+	'/reset-password/',
+	'/auth/oidc/',
+	'/api/auth/',
+	'/api/health',
+	'/api/slack/interactions',
+	'/api/slack/commands',
+	'/api/slack/events',
+	'/api/slack/oauth',
+	'/api/billing/webhook'
+];
 /** Pages a signed-in user without an organisation can still open. */
 const NO_ORG_OK = ['/signup', '/account', '/api/account', '/api/orgs'];
 const ADMIN_PAGES = ['/resources/new', '/resources/import', '/audit', '/settings', '/evidence'];
@@ -37,8 +52,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const visible = publicUrl(event.url, event.request.headers);
-	// Machine endpoints (SCIM, the public API) bring their own bearer tokens: no cookies, no redirects.
-	if (pathname.startsWith('/scim/') || pathname.startsWith('/api/v1/')) {
+	// Machine endpoints (SCIM, the public API, MCP) bring their own bearer tokens: no cookies, no redirects.
+	if (pathname.startsWith('/scim/') || pathname.startsWith('/api/v1/') || pathname === '/mcp') {
 		event.locals.origin = config.publicUrl || visible.origin;
 		event.locals.secure = visible.protocol === 'https:';
 		event.locals.auth = 'anonymous';

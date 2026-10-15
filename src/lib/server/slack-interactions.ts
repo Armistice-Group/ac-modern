@@ -3,6 +3,7 @@ import type { Db } from './db.ts';
 import { HttpError } from './http.ts';
 import { decide, effects, flush, getRequest } from './requests.ts';
 import { getSlack, orgForTeam, signingSecretFor, slackApi, slackEmail, verifySignature } from './slack.ts';
+import { levelOptions, submitRequest } from './slack-commands.ts';
 
 /**
  * Handles Slack button clicks and the "why are you denying" modal. The clicker is matched
@@ -15,7 +16,7 @@ export async function handleInteraction(
 	headers: { timestamp: string | null; signature: string | null },
 	origin: string,
 	post: (url: string, body: unknown) => Promise<unknown> = (url, body) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-): Promise<{ status: number; body?: unknown }> {
+): Promise<{ status: number; body?: unknown; work?: Promise<void> }> {
 	const payload = JSON.parse(new URLSearchParams(raw).get('payload') ?? '{}');
 	const teamId = payload.team?.id ?? payload.user?.team_id;
 	const orgId = teamId ? await orgForTeam(db, teamId) : null;
@@ -27,6 +28,16 @@ export async function handleInteraction(
 	const m = user ? await membership(db, orgId, user.id) : undefined;
 	const reply = (url: string | undefined, text: string, replace = false) =>
 		url ? post(url, { text, replace_original: replace, response_type: 'ephemeral' }).catch(() => {}) : Promise.resolve();
+
+	// The system picker in the /access form, as the person types.
+	if (payload.type === 'block_suggestion') {
+		const admin = m?.role === 'owner' || m?.role === 'admin';
+		return { status: 200, body: { options: user && m ? await levelOptions(db, orgId, admin, String(payload.value ?? '')) : [] } };
+	}
+	if (payload.type === 'view_submission' && payload.view?.callback_id === 'acm_request') {
+		const r = await submitRequest(db, orgId, cfg, payload, origin);
+		return { status: 200, body: r.body, work: r.work };
+	}
 
 	if (payload.type === 'block_actions') {
 		const action = payload.actions?.[0];

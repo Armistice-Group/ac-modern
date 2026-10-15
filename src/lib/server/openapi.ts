@@ -28,6 +28,7 @@ export function openapi(origin: string) {
 			'/organization': get('The organisation and its access-control settings', { type: 'object' }),
 			'/users': get('People, with role, manager and status', list('User'), [{ name: 'status', in: 'query', schema: { enum: ['all', 'active', 'deactivated'] } }, ...page]),
 			'/resources': get('Systems people can request, with owners, approval rules and access levels', list('Resource'), page),
+			'/approval-rules': get('Auto-approval rules: which non-privileged requests skip approval, and for whom', list('ApprovalRule'), page),
 			'/access': get('Who has what (grants)', list('Grant'), [
 				{ name: 'status', in: 'query', schema: { enum: ['active', 'all'] } },
 				{ name: 'user_email', in: 'query', schema: { type: 'string' } },
@@ -73,6 +74,8 @@ export function openapi(origin: string) {
 						requested_by: person,
 						requested_at: { type: 'string' },
 						justification: { type: 'string' },
+						approval_policy: { enum: ['none', 'manager', 'approvers', 'manager_then_approvers'] },
+						auto_approval_rule: { type: ['object', 'null'], properties: { id: { type: 'string' }, name: { type: 'string' }, reason: { type: 'string' } } },
 						approvals: {
 							type: 'array',
 							items: { type: 'object', properties: { step: { type: 'integer' }, decision: { enum: ['approved', 'denied'] }, capacity: { enum: ['manager', 'system_owner', 'approver', 'admin_fallback', 'admin_override', 'self', null] }, approver: person, at: { type: 'string' } } }
@@ -81,6 +84,22 @@ export function openapi(origin: string) {
 						fulfilled_at: { type: ['string', 'null'] },
 						flags: { type: 'array', items: { type: 'string' } },
 						exception: { type: 'boolean' }
+					}
+				},
+				ApprovalRule: {
+					type: 'object',
+					properties: {
+						id: { type: 'string' },
+						name: { type: 'string' },
+						enabled: { type: 'boolean' },
+						description: { type: 'string' },
+						resource_ids: { type: 'array', items: { type: 'string' } },
+						access_level_ids: { type: 'array', items: { type: 'string' } },
+						group_ids: { type: 'array', items: { type: 'string' } },
+						user_ids: { type: 'array', items: { type: 'string' } },
+						max_days: { type: ['integer', 'null'] },
+						created_at: { type: 'string' },
+						updated_at: { type: 'string' }
 					}
 				},
 				Event: { type: 'object', properties: { id: { type: 'string' }, at: { type: 'string' }, actor: person, action: { type: 'string' }, request_number: { type: ['integer', 'null'] }, summary: { type: 'string' } } }

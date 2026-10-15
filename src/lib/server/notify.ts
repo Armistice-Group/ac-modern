@@ -106,8 +106,13 @@ async function slackDms(db: Db, n: Notice, emails: string[], link: string) {
 						{ type: 'button', text: { type: 'plain_text', text: 'Open' }, action_id: 'open', url: link }
 					]
 				});
+				blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: 'Or reply in this thread: *y* to approve, *n* and the reason to deny.' }] });
 			} else blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: `<${link}|Open in ac·modern>` }] });
-			await slackApi(cfg.botToken, 'chat.postMessage', { channel: user, text: n.subject, blocks, unfurl_links: false });
+			const sent = await slackApi<{ channel: string; ts: string }>(cfg.botToken, 'chat.postMessage', { channel: user, text: n.subject, blocks, unfurl_links: false });
+			if (n.approve && sent.channel && sent.ts) {
+				const { rememberApprovalMessage } = await import('./slack-commands.ts');
+				await rememberApprovalMessage(db, n.orgId, n.approve.requestId, sent.channel, sent.ts);
+			}
 		} catch (err) {
 			console.warn(`[ac-modern] Slack DM to ${email} failed: ${(err as Error).message}`);
 		}

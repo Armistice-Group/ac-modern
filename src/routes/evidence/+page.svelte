@@ -23,6 +23,7 @@
 	const EXC = ['admin_override', 'admin_fallback', 'self_approved', 'manager_unavailable'];
 	const FLAG_SHORT: Record<string, string> = {
 		pre_approved: 'Pre-approved',
+		auto_approved: 'Auto-approved',
 		admin_override: 'Admin override',
 		admin_fallback: 'Admin fallback',
 		self_approved: 'Self-approved',
@@ -71,6 +72,9 @@
 				? `Privileged access levels (${c.privilegedLevels.length ? c.privilegedLevels.join(', ') : 'none defined yet'}) always require approval by the system owner or a designated approver, in addition to any manager approval.`
 				: 'Privileged access levels follow the same approval rule as their system.',
 			c.preApproved.length ? `Standard access to ${c.preApproved.join(', ')} is pre-approved by policy; privileged levels on these systems still require approval.` : '',
+			c.autoRules.length
+				? `Admin-defined auto-approval rules approve some standard (never privileged) requests without a person: ${c.autoRules.join('; ')}. Each such request records the rule and why it matched, and every change to a rule is logged.`
+				: '',
 			'Access is set up only after approval, by a named administrator or an automated integration, and the request is closed with who did it and when. New hires’ starting access is requested as one onboarding batch; transfers request new access and remove old access together. Time-limited access is removed automatically when it expires, and access is reviewed periodically by system owners.',
 			'The request population and individual tickets (with approvals, timeline and a SHA-256 fingerprint of the record) can be exported for any period.'
 		]

@@ -91,12 +91,26 @@ export async function slackEmail(cfg: SlackConfig, slackUser: string): Promise<s
 	}
 }
 
+/** Bot scopes the app needs: DMs with buttons, /access, and reading replies to its DMs. */
+export const SLACK_SCOPES = ['chat:write', 'im:write', 'im:history', 'users:read', 'users:read.email', 'commands'];
+
 /** The app manifest for "Create an app from a manifest". */
-export function manifest(orgName: string, interactionsUrl: string) {
+export function manifest(orgName: string, origin: string) {
+	const interactions = `${origin}/api/slack/interactions`;
 	return {
 		display_information: { name: 'ac·modern', description: `Access requests for ${orgName}`, background_color: '#5b21b6' },
-		features: { bot_user: { display_name: 'ac·modern', always_online: true } },
-		oauth_config: { scopes: { bot: ['chat:write', 'im:write', 'users:read', 'users:read.email'] } },
-		settings: { interactivity: { is_enabled: true, request_url: interactionsUrl }, org_deploy_enabled: false, socket_mode_enabled: false, token_rotation_enabled: false }
+		features: {
+			app_home: { home_tab_enabled: false, messages_tab_enabled: true, messages_tab_read_only_enabled: false },
+			bot_user: { display_name: 'ac·modern', always_online: true },
+			slash_commands: [{ command: '/access', url: `${origin}/api/slack/commands`, description: 'Request access, or see what’s waiting on you', usage_hint: '[system level | mine | help]', should_escape: false }]
+		},
+		oauth_config: { scopes: { bot: SLACK_SCOPES } },
+		settings: {
+			event_subscriptions: { request_url: `${origin}/api/slack/events`, bot_events: ['message.im'] },
+			interactivity: { is_enabled: true, request_url: interactions, message_menu_options_url: interactions },
+			org_deploy_enabled: false,
+			socket_mode_enabled: false,
+			token_rotation_enabled: false
+		}
 	};
 }

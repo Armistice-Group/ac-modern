@@ -8,6 +8,7 @@
 
 	const FLAG_LABEL: Record<string, string> = {
 		pre_approved: 'Pre-approved by the resource’s policy (standard access; privileged levels always need approval)',
+		auto_approved: 'Auto-approved by an approval rule set by an admin (standard access; privileged levels always need approval)',
 		admin_override: 'Approved by an admin on the designated approver’s behalf',
 		admin_fallback: 'No designated approver was available, so an admin approved',
 		self_approved: 'Self-approved: nobody else could approve',
@@ -84,6 +85,10 @@
 				</p>
 				{#if q.kind === 'revoke'}
 					<p>Removals don’t need approval.</p>
+				{:else if q.autoRule}
+					<p>
+						Auto-approved by the rule <strong>“{q.autoRule.name}”</strong>: {q.autoRule.reason}. The system’s own rule was “{APPROVAL_LABEL[(s.resource?.policy ?? 'approvers') as keyof typeof APPROVAL_LABEL]}”. Rules are set by admins, and every change to them is in the audit log; privileged levels always need approval.
+					</p>
 				{:else if q.policy === 'none'}
 					<p>No approval step: standard access pre-approved by the resource’s policy.</p>
 				{:else}
@@ -133,7 +138,7 @@
 				<section class="mt-6">
 					<h2 class="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Notes for the reviewer</h2>
 					<ul class="list-disc space-y-0.5 pl-5">
-						{#each t.flags as f (f)}<li class={EXC.includes(f) ? 'text-danger' : ''}>{FLAG_LABEL[f]}</li>{/each}
+						{#each t.flags as f (f)}<li class={EXC.includes(f) ? 'text-danger' : ''}>{f === 'auto_approved' && q.autoRule ? `Auto-approved by rule “${q.autoRule.name}” (${q.autoRule.reason}), set by an admin; privileged levels always need approval` : FLAG_LABEL[f]}</li>{/each}
 					</ul>
 				</section>
 			{/if}

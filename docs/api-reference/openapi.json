@@ -154,6 +154,59 @@
 				}
 			}
 		},
+		"/approval-rules": {
+			"get": {
+				"summary": "Auto-approval rules: which non-privileged requests skip approval, and for whom",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"schema": {
+							"type": "integer",
+							"default": 100,
+							"maximum": 1000
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/ApprovalRule"
+											}
+										},
+										"next_cursor": {
+											"type": [
+												"string",
+												"null"
+											],
+											"description": "Pass as ?cursor= for the next page"
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token"
+					}
+				}
+			}
+		},
 		"/access": {
 			"get": {
 				"summary": "Who has what (grants)",
@@ -766,6 +819,31 @@
 					"justification": {
 						"type": "string"
 					},
+					"approval_policy": {
+						"enum": [
+							"none",
+							"manager",
+							"approvers",
+							"manager_then_approvers"
+						]
+					},
+					"auto_approval_rule": {
+						"type": [
+							"object",
+							"null"
+						],
+						"properties": {
+							"id": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							},
+							"reason": {
+								"type": "string"
+							}
+						}
+					},
 					"approvals": {
 						"type": "array",
 						"items": {
@@ -834,6 +912,59 @@
 					},
 					"exception": {
 						"type": "boolean"
+					}
+				}
+			},
+			"ApprovalRule": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"enabled": {
+						"type": "boolean"
+					},
+					"description": {
+						"type": "string"
+					},
+					"resource_ids": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"access_level_ids": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"group_ids": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"user_ids": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"max_days": {
+						"type": [
+							"integer",
+							"null"
+						]
+					},
+					"created_at": {
+						"type": "string"
+					},
+					"updated_at": {
+						"type": "string"
 					}
 				}
 			},

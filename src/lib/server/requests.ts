@@ -5,6 +5,7 @@ import { record } from './events.ts';
 import { badRequest, conflict, forbidden, notFound } from './http.ts';
 import type { Notice } from './notify.ts';
 import { getResource, getRole, webhookSecret } from './resources.ts';
+import { describeRule, getRule, matchRule } from './rules.ts';
 import type { AccessRequest, ApprovalCapacity, ApprovalPolicy, OrgSettings, RequestCategory, RequestReason, RequestStatus, Resource } from '#lib/types.ts';
 
 const now = () => new Date().toISOString();
@@ -37,6 +38,7 @@ interface Row {
 	category: RequestCategory;
 	privileged: number;
 	policy: ApprovalPolicy;
+	auto_rule: string;
 	batch_id: string | null;
 	status: RequestStatus;
 	step: number;
@@ -59,7 +61,7 @@ interface Row {
 	closed_at: string | null;
 }
 
-const SELECT = `SELECT q.id, q.number, q.kind, q.reason, q.category, q.privileged, q.policy, q.batch_id, q.status, q.step, q.requester_id, rq.email AS requester_email, rq.name AS requester_name,
+const SELECT = `SELECT q.id, q.number, q.kind, q.reason, q.category, q.privileged, q.policy, q.auto_rule, q.batch_id, q.status, q.step, q.requester_id, rq.email AS requester_email, rq.name AS requester_name,
 	q.user_id, u.email AS user_email, u.name AS user_name, q.resource_id, r.name AS resource_name, r.color AS resource_color,
 	q.role_id, rr.name AS role_name, q.grant_id, q.justification, q.duration_days, q.created_at, q.updated_at, q.closed_at
 	FROM requests q
@@ -76,6 +78,7 @@ const toRequest = (r: Row): AccessRequest => ({
 	category: r.category,
 	privileged: !!r.privileged,
 	policy: r.policy,
+	autoRule: r.auto_rule ? JSON.parse(r.auto_rule) : null,
 	batchId: r.batch_id,
 	status: r.status,
 	step: Number(r.step),
@@ -266,7 +269,13 @@ export interface NewRequest {
 	/** Set by the onboarding and transfer flows; otherwise worked out from what they hold. */
 	category?: 'new_hire' | 'transfer';
 	batchId?: string | null;
+	/** Where it was asked from, for the audit log. */
+	via?: Via;
 }
+
+/** Where a person acted from, recorded on requests and approvals. */
+export type Via = 'web' | 'slack' | 'mcp';
+const VIA_LABEL: Record<Via, string> = { web: '', slack: ' via Slack', mcp: ' via MCP' };
 
 /** New members count as new hires for this long (for requests made outside onboarding). */
 const NEW_HIRE_DAYS = 30;
@@ -315,8 +324,11 @@ export async function createRequest(db: Db, actor: Actor & { userId: string }, i
 	}
 	if (days !== null && days < 1) throw badRequest('Duration must be at least a day');
 	const settings = await orgSettings(db, actor.orgId);
-	const policy = effectivePolicy(resource.approval, role.privileged, settings);
+	let policy = effectivePolicy(resource.approval, role.privileged, settings);
 	if (policy !== 'none' && input.justification.trim().length < 3) throw badRequest('Say briefly why the access is needed');
+	// Privileged levels always go to a person, whatever the rules say.
+	const rule = policy !== 'none' && !role.privileged ? await matchRule(db, actor.orgId, { userId: input.userId, resourceId: resource.id, roleId: role.id, days }) : null;
+	if (rule) policy = 'none';
 
 	return db.tx(async (tx) => {
 		const dup = await tx.get<{ number: number }>(
@@ -351,9 +363,9 @@ export async function createRequest(db: Db, actor: Actor & { userId: string }, i
 		const status: RequestStatus = policy === 'none' ? 'pending_fulfillment' : 'pending_approval';
 		const snap = await snapshot(tx, actor.orgId, input.userId, actor.userId, resource, role);
 		await tx.run(
-			`INSERT INTO requests (id, org_id, number, kind, reason, category, privileged, policy, batch_id, snapshot, requester_id, user_id, resource_id, role_id, justification, duration_days, status, step, created_at, updated_at)
-			 VALUES (?, ?, ?, 'grant', 'request', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-			[id, actor.orgId, number, category, role.privileged, policy, input.batchId ?? null, JSON.stringify(snap), actor.userId, input.userId, resource.id, role.id, input.justification.trim(), days, status, t, t]
+			`INSERT INTO requests (id, org_id, number, kind, reason, category, privileged, policy, auto_rule, batch_id, snapshot, requester_id, user_id, resource_id, role_id, justification, duration_days, status, step, created_at, updated_at)
+			 VALUES (?, ?, ?, 'grant', 'request', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+			[id, actor.orgId, number, category, role.privileged, policy, rule ? JSON.stringify(rule) : '', input.batchId ?? null, JSON.stringify(snap), actor.userId, input.userId, resource.id, role.id, input.justification.trim(), days, status, t, t]
 		);
 		const req = await getRequest(tx, actor.orgId, { id });
 		const forSelf = input.userId === actor.userId;
@@ -363,11 +375,23 @@ export async function createRequest(db: Db, actor: Actor & { userId: string }, i
 			action: 'request.created',
 			requestId: id,
 			subject: resource.name,
-			summary: `Requested ${what(req)}${forSelf ? '' : ` for ${who(req.user)}`}${held ? ' (extension)' : ''}`,
-			data: { days, category, privileged: role.privileged, policy }
+			summary: `Requested ${what(req)}${forSelf ? '' : ` for ${who(req.user)}`}${held ? ' (extension)' : ''}${VIA_LABEL[input.via ?? 'web']}`,
+			data: { days, category, privileged: role.privileged, policy, via: input.via ?? 'web' }
 		});
+		if (rule) {
+			const r = await getRule(tx, actor.orgId, rule.id);
+			await record(tx, {
+				orgId: actor.orgId,
+				actorId: null,
+				action: 'request.auto_approved',
+				requestId: id,
+				subject: resource.name,
+				summary: `Auto-approved by rule “${rule.name}”: ${rule.reason}`,
+				data: { rule: { ...r, description: await describeRule(tx, actor.orgId, r) }, reason: rule.reason, resourcePolicy: resource.approval }
+			});
+		}
 		if (status === 'pending_approval') await announceApproval(tx, actor.orgId, req, resource, fx);
-		else await startFulfillment(tx, actor.orgId, req, resource, fx, 'No approval needed (pre-approved by the resource’s policy)');
+		else await startFulfillment(tx, actor.orgId, req, resource, fx, rule ? `Auto-approved by rule “${rule.name}”` : 'No approval needed (pre-approved by the resource’s policy)');
 		return getRequest(tx, actor.orgId, { id });
 	});
 }
@@ -427,7 +451,7 @@ export const CAPACITY_LABEL: Record<ApprovalCapacity, string> = {
 	'': 'Approver'
 };
 
-export async function decide(db: Db, actor: Actor & { userId: string }, requestId: string, decision: 'approved' | 'denied', comment: string, fx: Effects, via: 'web' | 'slack' = 'web') {
+export async function decide(db: Db, actor: Actor & { userId: string }, requestId: string, decision: 'approved' | 'denied', comment: string, fx: Effects, via: Via = 'web') {
 	return db.tx(async (tx) => {
 		const req = await getRequest(tx, actor.orgId, { id: requestId });
 		if (req.status !== 'pending_approval') throw conflict('This request isn’t waiting for approval any more');
@@ -464,7 +488,7 @@ export async function decide(db: Db, actor: Actor & { userId: string }, requestI
 			action: decision === 'approved' ? 'request.approved' : 'request.denied',
 			requestId: req.id,
 			subject: resource.name,
-			summary: `${decision === 'approved' ? 'Approved' : 'Denied'} ${what(req)} for ${who(req.user)} as ${CAPACITY_LABEL[capacity].toLowerCase()}${capacity === 'self' ? ' (no other approver)' : ''}${via === 'slack' ? ' via Slack' : ''}`,
+			summary: `${decision === 'approved' ? 'Approved' : 'Denied'} ${what(req)} for ${who(req.user)} as ${CAPACITY_LABEL[capacity].toLowerCase()}${capacity === 'self' ? ' (no other approver)' : ''}${VIA_LABEL[via]}`,
 			data: { step: req.step, comment: comment.trim(), capacity, via }
 		});
 

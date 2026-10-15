@@ -1,32 +1,67 @@
 ---
 title: Slack
-description: Approve and deny from Slack, and keep requesters up to date.
+description: Request access with /access, approve with a click or a "y", and keep requesters up to date.
 icon: message-square
 ---
 
 With the Slack app connected:
 
 - **Approvers** get a direct message for each request waiting on them, with **Approve**, **Deny…** and **Open**. *Deny…* opens a form asking why; the requester sees the reason.
+- **Approvers can reply instead:** **y** in the message's thread approves, **n** and the reason denies.
+- **Anyone can type `/access`** to request access from a form, or `/access mine` to see what's open and what's waiting on them.
 - **Requesters and fulfillers** get the same updates by direct message as by email.
 
-People are matched between Slack and ac·modern by email. Clicking a button is exactly like approving on the web: only the current step's approvers can act, and the audit log records the approval *via Slack*.
+People are matched between Slack and ac·modern by email. Everything goes through the same checks as on the web: only the current step's approvers can approve, never for their own access, and the audit log records each request and decision *via Slack*.
+
+## Approving by reply
+
+Reply in the thread of the approval message:
+
+| Reply | Does |
+|---|---|
+| `y`, `yes`, `approve`, `lgtm`, 👍, ✅ | Approves; anything after it is kept as a comment |
+| `n not needed for this project`, `deny: use read-only`, ❌ | Denies, with the rest as the reason (required) |
+
+Outside a thread, say which request: `approve 42`, `deny #42 wrong team`.
+
+Replies are deliberately strict: *"ok, I'll look later"* doesn't approve anything. Once a request is decided, the buttons are taken off the original message.
+
+## `/access`
+
+| Command | Does |
+|---|---|
+| `/access` | Opens a form: system and level (searchable), how many days, and why |
+| `/access grafana viewer` | The same, with the system and level filled in |
+| `/access mine` | Your open requests, and requests waiting for your approval or setup |
+| `/access help` | How it works |
+
+The request then follows the system's approval rule (or an [auto-approval rule](/guides/approving#auto-approval-rules)), and the requester hears back by direct message.
 
 ## Self-hosted: create the app
 
 <Steps>
   <Step title="Create the app from our manifest">
-    **Settings → Integrations → Slack app** has a link that opens Slack's *Create an app from a manifest* with everything filled in: the bot user, scopes `chat:write`, `im:write`, `users:read`, `users:read.email`, and interactivity pointing at:
+    **Settings → Integrations → Slack app** has a link that opens Slack's *Create an app from a manifest* with everything filled in: the bot user, the `/access` command, the events and interactivity URLs, and the scopes `chat:write`, `im:write`, `im:history`, `users:read`, `users:read.email` and `commands`.
+
+    Slack has to be able to reach these, without signing in to your proxy:
 
     ```
     https://<your ac·modern>/api/slack/interactions
+    https://<your ac·modern>/api/slack/commands
+    https://<your ac·modern>/api/slack/events
     ```
-
-    Slack has to be able to reach that URL over the internet.
   </Step>
   <Step title="Install it and connect">
     Install the app to your workspace, then paste the **Bot User OAuth Token** (`xoxb-…`) and the **Signing Secret** (under *Basic Information*).
   </Step>
+  <Step title="Check the events URL">
+    In the app's **Event Subscriptions**, the request URL should say *Verified*. If not, click **Retry**.
+  </Step>
 </Steps>
+
+### Updating an app made before `/access`
+
+Apps created before version 0.3 don't have the command, events or the extra scopes. In ac·modern's Slack settings, copy the manifest; in the Slack app's **App Manifest** page, replace it, **Save**, and reinstall the app when Slack asks. The bot token stays the same.
 
 ## Cloud: Add to Slack
 
@@ -38,11 +73,11 @@ ACM_SLACK_CLIENT_SECRET=…
 ACM_SLACK_SIGNING_SECRET=…
 ```
 
-with redirect URL `https://<your ac·modern>/api/slack/oauth` and interactivity URL `https://<your ac·modern>/api/slack/interactions`. Admins then see **Add to Slack** instead of the manual steps. A Slack workspace can be connected to one organisation.
+with redirect URL `https://<your ac·modern>/api/slack/oauth`, interactivity and options-load URL `https://<your ac·modern>/api/slack/interactions`, the `/access` command at `https://<your ac·modern>/api/slack/commands`, and the `message.im` bot event at `https://<your ac·modern>/api/slack/events`. Admins then see **Add to Slack** instead of the manual steps. A Slack workspace can be connected to one organisation.
 
 ## Security
 
-Every interaction is verified with Slack's request signature, and anything older than five minutes is rejected.
+Every interaction, command and event is verified with Slack's request signature, and anything older than five minutes is rejected. Slack's retries of an event are ignored, so a reply never acts twice. A reply in a thread only counts in the approver's own conversation with the app.
 
 ## Channel notifications
 

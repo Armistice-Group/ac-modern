@@ -19,12 +19,13 @@ This matters for three things:
 - **Links** in emails, Slack and webhooks use `ACM_PUBLIC_URL`.
 
 <Warning>
-  Slack interactivity, Stripe webhooks and SCIM from a cloud IdP need ac·modern to be reachable from the internet. Expose just those paths if you'd rather keep the rest private:
+  Slack, Stripe webhooks, SCIM from a cloud IdP and remote MCP clients need ac·modern to be reachable from the internet, and without signing in to an authenticating proxy (Pangolin, Authelia, Cloudflare Access): they bring their own signatures or tokens. Expose or bypass just those paths if you'd rather keep the rest private:
 
-  - `/api/slack/interactions`, `/api/slack/oauth`
+  - `/api/slack/` (interactions, `/access` command, events, OAuth)
   - `/api/billing/webhook`
   - `/scim/v2/`
   - `/api/v1/` (for a cloud GRC tool)
+  - `/mcp` (for AI assistants outside your network)
 </Warning>
 
 ## Health check

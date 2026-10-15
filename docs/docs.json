@@ -90,6 +90,7 @@
               "integrations/authentik",
               "integrations/entra",
               "integrations/slack",
+              "integrations/mcp",
               "integrations/webhooks"
             ]
           },

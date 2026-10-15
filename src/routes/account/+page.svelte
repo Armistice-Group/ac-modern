@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import PageHeader from '#lib/components/PageHeader.svelte';
+	import McpTokens from './McpTokens.svelte';
 	import { api, errorMessage } from '#lib/client/api.ts';
 	import { toast } from '#lib/client/state.svelte.ts';
 	import type { PageProps } from './$types';
@@ -65,4 +66,5 @@
 		</div>
 		<button class="btn btn-primary">Change password</button>
 	</form>
+	{#if page.data.org}<McpTokens tokens={data.tokens} mcpUrl={data.mcpUrl} />{/if}
 </div>

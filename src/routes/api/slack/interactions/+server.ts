@@ -7,5 +7,6 @@ import { handleInteraction } from '#lib/server/slack-interactions.ts';
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const raw = await request.text();
 	const r = await handleInteraction(await db(), raw, { timestamp: request.headers.get('x-slack-request-timestamp'), signature: request.headers.get('x-slack-signature') }, locals.origin);
+	if (r.work) void r.work;
 	return r.body ? json(r.body, { status: r.status }) : new Response(null, { status: r.status });
 };

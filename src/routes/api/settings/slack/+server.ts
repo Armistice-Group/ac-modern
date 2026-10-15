@@ -6,7 +6,7 @@ import { connectSlack, disconnectSlack, manifest } from '#lib/server/slack.ts';
 
 export const GET = handler(async (event) => {
 	const c = adminCtx(event.locals);
-	return json(manifest(c.org.name, `${event.locals.origin}/api/slack/interactions`));
+	return json(manifest(c.org.name, event.locals.origin));
 });
 
 export const PUT = handler(async (event) => {

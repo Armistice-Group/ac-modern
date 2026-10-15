@@ -5,6 +5,7 @@ import { listEvents } from './events.ts';
 import { listGrants } from './grants.ts';
 import { listResources } from './resources.ts';
 import { getReview, listReviews, reviewItems } from './reviews.ts';
+import { describeRule, listRules } from './rules.ts';
 import type { GrantStatus, RequestCategory } from '#lib/types.ts';
 
 /**
@@ -68,6 +69,7 @@ function requestJson(r: EvidenceRow) {
 		justification: q.justification,
 		duration_days: q.durationDays,
 		approval_policy: q.policy,
+		auto_approval_rule: q.autoRule ? { id: q.autoRule.id, name: q.autoRule.name, reason: q.autoRule.reason } : null,
 		approvals: r.approvals.map((a) => ({ step: a.step, decision: a.decision, capacity: a.capacity || null, approver: { id: a.approver.id, email: a.approver.email, name: a.approver.name }, comment: a.comment, at: a.at })),
 		approved_at: r.approvedAt,
 		fulfilled_by: r.fulfilledAt ? (r.fulfilledBy ? { email: r.fulfilledBy.email, name: r.fulfilledBy.name } : { automatic: true }) : null,
@@ -96,6 +98,25 @@ export async function handleV1(db: Db, orgId: string, path: string[], q: URLSear
 					}
 				}
 			};
+		}
+		case 'approval-rules': {
+			const rules = await listRules(db, orgId);
+			const rows = [];
+			for (const r of rules)
+				rows.push({
+					id: r.id,
+					name: r.name,
+					enabled: r.enabled,
+					description: await describeRule(db, orgId, r),
+					resource_ids: r.resourceIds,
+					access_level_ids: r.roleIds,
+					group_ids: r.groupIds,
+					user_ids: r.userIds,
+					max_days: r.maxDays,
+					created_at: r.createdAt,
+					updated_at: r.updatedAt
+				});
+			return paginate(rows, q);
 		}
 		case 'users': {
 			const status = q.get('status') ?? 'all';

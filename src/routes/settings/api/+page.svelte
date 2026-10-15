@@ -27,6 +27,11 @@
 			busy = false;
 		}
 	}
+	async function revokePersonal(t: { id: string; name: string; user: { name: string; email: string } }) {
+		if (!(await confirmAction({ title: `Revoke ${t.user.name || t.user.email}’s “${t.name}”?`, body: 'Their assistant loses access immediately. They can make a new token.', danger: true, confirmLabel: 'Revoke' }))) return;
+		await api.del(`/api/account/tokens/${t.id}`);
+		await invalidateAll();
+	}
 	async function revoke(t: { id: string; name: string }) {
 		if (!(await confirmAction({ title: `Revoke “${t.name}”?`, body: 'Anything using it stops working immediately.', danger: true, confirmLabel: 'Revoke' }))) return;
 		await api.del(`/api/settings/tokens/${t.id}`);
@@ -61,6 +66,26 @@
 	</section>
 
 	<section class="card p-5">
+		<h2 class="text-[0.9375rem] font-semibold tracking-tight">Personal tokens (MCP)</h2>
+		<p class="mt-1 text-xs text-muted-foreground">
+			Members make these under <a class="text-primary hover:underline" href="/account">Account</a> to connect an AI assistant at <span class="font-mono">{data.mcpUrl}</span>. Each acts as its member, with their permissions, and stops working when they’re deactivated.
+		</p>
+		<ul class="mt-4 divide-y divide-border rounded-xl border border-border">
+			{#each data.personal as t (t.id)}
+				<li class="flex flex-wrap items-center gap-3 px-3 py-2.5 text-[0.8125rem]">
+					<span class="font-medium">{t.user.name || t.user.email}</span>
+					<span class="text-muted-foreground">{t.name}</span>
+					{#if t.canApprove}<span class="badge badge-warning">Can approve</span>{/if}
+					<span class="flex-1 text-xs text-muted-foreground">{t.lastUsedAt ? `used ${ago(t.lastUsedAt)}` : 'never used'}{t.expiresAt ? ` · expires ${date(t.expiresAt)}` : ''}</span>
+					<button class="btn btn-ghost btn-icon btn-sm hover:text-danger" title="Revoke" onclick={() => revokePersonal(t)}><Trash2 /></button>
+				</li>
+			{:else}
+				<li class="px-3 py-5 text-center text-xs text-muted-foreground">No personal tokens.</li>
+			{/each}
+		</ul>
+	</section>
+
+	<section class="card p-5">
 		<h2 class="text-[0.9375rem] font-semibold tracking-tight">Endpoints</h2>
 		<div class="mt-3 flex gap-2">
 			<input class="input font-mono text-xs" readonly value={data.base} />
@@ -68,7 +93,7 @@
 		</div>
 		<table class="mt-4 w-full text-left text-xs">
 			<tbody class="divide-y divide-border">
-				{#each [['GET /users', 'People, roles, managers, status'], ['GET /resources', 'Systems, owners, approval rules, access levels (privileged)'], ['GET /access', 'Who has what right now'], ['GET /requests', 'The audit population for a period: type, approvals with capacity, setup'], ['GET /requests/{number}', 'One ticket: timeline and SHA-256 fingerprint'], ['GET /reviews', 'Access reviews and every decision'], ['GET /events', 'The audit log']] as [p, d] (p)}
+				{#each [['GET /users', 'People, roles, managers, status'], ['GET /resources', 'Systems, owners, approval rules, access levels (privileged)'], ['GET /access', 'Who has what right now'], ['GET /requests', 'The audit population for a period: type, approvals with capacity, setup'], ['GET /requests/{number}', 'One ticket: timeline and SHA-256 fingerprint'], ['GET /approval-rules', 'Auto-approval rules'], ['GET /reviews', 'Access reviews and every decision'], ['GET /events', 'The audit log']] as [p, d] (p)}
 					<tr><td class="py-1.5 pr-4 font-mono whitespace-nowrap">{p}</td><td class="py-1.5 text-muted-foreground">{d}</td></tr>
 				{/each}
 			</tbody>

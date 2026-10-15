@@ -57,6 +57,7 @@ Generating tickets or the population is itself logged.
 | Flag | Exception? | Meaning |
 |---|---|---|
 | Pre-approved | No | Standard access on a resource with no approval step. Privileged levels never get here. |
+| Auto-approved | No | Matched an admin's [auto-approval rule](/guides/approving#auto-approval-rules); the ticket names the rule and why it matched. Privileged levels never get here. |
 | Webhook | No | Set up automatically |
 | Approver set up | No | The same person approved and set it up |
 | Admin override | **Yes** | An admin approved on a designated approver's behalf |
@@ -70,8 +71,8 @@ Three lists sit under the population:
 
 - **Access outside requests:** access [recorded by an admin](/guides/recording-existing-access) with its source, and access [detected in your IdP](/identity/directory-sync#group-mappings) without a request
 - **ac·modern admin changes:** who was made (or stopped being) an admin or owner
-- **Control changes:** approval rules, system owners, privileged levels and settings changed in the period
+- **Control changes:** approval rules, auto-approval rules, system owners, privileged levels and settings changed in the period
 
 ## Control description
 
-A written description of how your process works, generated from your current settings (approval rules, privileged levels, admin override, pre-approved resources). Copy it into your control narrative or walkthrough notes, and check it against what you actually do.
+A written description of how your process works, generated from your current settings (approval rules, auto-approval rules, privileged levels, admin override, pre-approved resources). Copy it into your control narrative or walkthrough notes, and check it against what you actually do.

@@ -6,6 +6,7 @@
 	let { children }: { children: Snippet } = $props();
 	const tabs = [
 		{ href: '/settings', label: 'General' },
+		{ href: '/settings/approvals', label: 'Approval rules' },
 		{ href: '/settings/sso', label: 'Single sign-on' },
 		{ href: '/settings/directory', label: 'Directory sync' },
 		{ href: '/settings/integrations', label: 'Integrations' },

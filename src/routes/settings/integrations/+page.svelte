@@ -160,9 +160,9 @@
 			<span class="grid size-9 place-items-center rounded-lg bg-muted"><MessageSquare class="size-4" /></span>
 			<div class="flex-1">
 				<h2 class="flex items-center gap-2 text-[0.9375rem] font-semibold tracking-tight">Slack app {#if data.slack}<span class="badge badge-success"><CircleCheck />{data.slack.team || 'Connected'}</span>{/if}</h2>
-				<p class="text-xs text-muted-foreground">Approvers get a direct message with Approve and Deny buttons; requesters hear back in Slack.</p>
+				<p class="text-xs text-muted-foreground">Approvers get a direct message with Approve and Deny buttons, or reply <strong>y</strong> or <strong>n</strong> in its thread. Anyone can type <span class="font-mono">/access</span> to request access, and requesters hear back in Slack.</p>
 			</div>
 		</div>
-		<SlackSettings connected={!!data.slack} interactionsUrl={data.slackEventsUrl} shared={data.slackShared} />
+		<SlackSettings connected={!!data.slack} slackBase={data.slackBase} shared={data.slackShared} />
 	</section>
 </div>

@@ -19,10 +19,11 @@ export interface Snapshot {
 	role?: { name: string; privileged: boolean };
 }
 
-export type Flag = 'pre_approved' | 'admin_override' | 'admin_fallback' | 'self_approved' | 'manager_unavailable' | 'approver_provisioned' | 'auto_provisioned';
+export type Flag = 'pre_approved' | 'auto_approved' | 'admin_override' | 'admin_fallback' | 'self_approved' | 'manager_unavailable' | 'approver_provisioned' | 'auto_provisioned';
 
 export const FLAG_LABEL: Record<Flag, string> = {
 	pre_approved: 'Pre-approved by resource policy',
+	auto_approved: 'Auto-approved by rule',
 	admin_override: 'Approved by admin override',
 	admin_fallback: 'No designated approver available; an admin approved',
 	self_approved: 'Self-approved (no other approver)',
@@ -82,7 +83,8 @@ async function approvalsFor(db: Db, orgId: string, ids: string[]): Promise<Map<s
 
 function flagsFor(req: AccessRequest, approvals: Approval[], fulfilledById: string | null): Flag[] {
 	const flags = new Set<Flag>();
-	if (req.kind === 'grant' && req.policy === 'none') flags.add('pre_approved');
+	if (req.kind === 'grant' && req.autoRule) flags.add('auto_approved');
+	else if (req.kind === 'grant' && req.policy === 'none') flags.add('pre_approved');
 	const steps = stepsFor(req.policy);
 	for (const a of approvals) {
 		if (a.capacity === 'admin_override') flags.add('admin_override');
@@ -181,7 +183,7 @@ export async function ticket(db: Db, orgId: string, number: number): Promise<Tic
 export async function outOfProcess(db: Db, orgId: string, from: string, to: string) {
 	const rows = await db.all<{ id: string; at: string; action: string; summary: string; data: string; actor_name: string | null; actor_email: string | null }>(
 		`SELECT e.id, e.at, e.action, e.summary, e.data, u.name AS actor_name, u.email AS actor_email FROM events e LEFT JOIN users u ON u.id = e.actor_id
-		 WHERE e.org_id = ? AND e.at >= ? AND e.at < ? AND e.action IN ('grant.recorded', 'grant.detected', 'member.updated', 'member.joined', 'member.offboarded', 'settings.updated', 'resource.updated')
+		 WHERE e.org_id = ? AND e.at >= ? AND e.at < ? AND e.action IN ('grant.recorded', 'grant.detected', 'member.updated', 'member.joined', 'member.offboarded', 'settings.updated', 'resource.updated', 'rule.created', 'rule.updated', 'rule.deleted')
 		 ORDER BY e.at DESC`,
 		[orgId, from, to]
 	);
@@ -189,7 +191,7 @@ export async function outOfProcess(db: Db, orgId: string, from: string, to: stri
 	return {
 		recorded: list.filter((e) => e.action === 'grant.recorded' || e.action === 'grant.detected'),
 		adminChanges: list.filter((e) => e.action === 'member.updated' && e.data.role !== undefined),
-		controlChanges: list.filter((e) => e.action === 'settings.updated' || (e.action === 'resource.updated' && Object.keys(e.data).some((k) => ['approval', 'ownerId', 'privileged'].includes(k))))
+		controlChanges: list.filter((e) => e.action === 'settings.updated' || e.action.startsWith('rule.') || (e.action === 'resource.updated' && Object.keys(e.data).some((k) => ['approval', 'ownerId', 'privileged'].includes(k))))
 	};
 }
 
@@ -240,7 +242,7 @@ export function populationCsv(rows: EvidenceRow[], capacityLabel: (c: ApprovalCa
 			r.fulfilledBy ? `${r.fulfilledBy.name} <${r.fulfilledBy.email}>` : r.fulfilledAt ? 'webhook' : '',
 			r.fulfilledAt ?? '',
 			r.request.status,
-			r.flags.map((f) => FLAG_LABEL[f]).join('; ')
+			r.flags.map((f) => (f === 'auto_approved' && r.request.autoRule ? `Auto-approved by rule “${r.request.autoRule.name}” (${r.request.autoRule.reason})` : FLAG_LABEL[f])).join('; ')
 		]
 			.map(csvCell)
 			.join(',');

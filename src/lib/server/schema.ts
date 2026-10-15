@@ -385,5 +385,37 @@ CREATE INDEX password_resets_user ON password_resets(user_id)
 	`
 ALTER TABLE resources ADD COLUMN external_ref TEXT NOT NULL DEFAULT '';
 CREATE INDEX resources_external_ref ON resources(org_id, external_ref)
+`,
+	// Auto-approval rules, personal tokens (MCP), and Slack approval messages (for thread replies).
+	`
+CREATE TABLE approval_rules (
+	id TEXT PRIMARY KEY,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	name TEXT NOT NULL,
+	enabled INTEGER NOT NULL DEFAULT 1,
+	resource_ids TEXT NOT NULL DEFAULT '[]',
+	role_ids TEXT NOT NULL DEFAULT '[]',
+	group_ids TEXT NOT NULL DEFAULT '[]',
+	user_ids TEXT NOT NULL DEFAULT '[]',
+	max_days INTEGER,
+	created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+CREATE INDEX approval_rules_org ON approval_rules(org_id);
+
+ALTER TABLE requests ADD COLUMN auto_rule TEXT NOT NULL DEFAULT '';
+ALTER TABLE api_tokens ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE api_tokens ADD COLUMN scopes TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE slack_messages (
+	channel TEXT NOT NULL,
+	ts TEXT NOT NULL,
+	org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+	request_id TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+	created_at TEXT NOT NULL,
+	PRIMARY KEY (channel, ts)
+);
+CREATE INDEX slack_messages_request ON slack_messages(request_id)
 `
 ];

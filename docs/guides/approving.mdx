@@ -13,7 +13,7 @@ When a request needs you, it appears under **Requests → To approve** and in **
 - **Approve** moves it to the next step, or to setup.
 - **Deny** requires a short note, which the requester sees.
 
-From Slack, **Approve** works in one click and **Deny…** opens a form for the reason. See [Slack](/integrations/slack).
+From Slack, **Approve** works in one click and **Deny…** opens a form for the reason, or reply **y** or **n** and the reason in the message's thread. See [Slack](/integrations/slack). You can also approve from an AI assistant through [MCP](/integrations/mcp), if your token allows it.
 
 ## Approval rules
 
@@ -24,7 +24,34 @@ From Slack, **Approve** works in one click and **Deny…** opens a form for the 
 | **Resource approvers** | Any one of the resource's approvers. |
 | **Manager, then approvers** | The manager first, then an approver. |
 
+To skip approval for some requests and not others (for example, people in Engineering asking for a developer tool for up to 30 days), use [auto-approval rules](#auto-approval-rules) instead of **No approval**.
+
 If the same person covers both steps (a manager who is also an approver), their one approval counts for both, and both steps are recorded.
+
+## Auto-approval rules
+
+**Settings → Approval rules** lets admins approve some requests automatically, by who's asking and for what. A request is auto-approved when it matches **every** condition of an enabled rule:
+
+| Condition | Matches when | Left empty |
+|---|---|---|
+| **Systems** | The request is for one of these systems | Any system |
+| **Access levels** | It's for one of these levels | Any non-privileged level of those systems |
+| **Who** | The person the access is for is in one of these [directory groups](/identity/directory-sync), or named in the rule | Everyone |
+| **Longest duration** | The request ends within this many days (so permanent requests don't match) | Any duration |
+
+A matching request skips approval and goes straight to setup. If the system is set up through an integration, access is granted in seconds.
+
+<Note>
+  **Privileged levels are never auto-approved.** They always go to the system owner or an approver, whatever the rules say.
+</Note>
+
+### What's recorded
+
+- The request records the rule by name and why it matched, for example *Auto-approved by “Engineering tools”: in Engineering; 7 days (rule allows up to 30)*. This appears on the request, in its timeline, in the audit log (`request.auto_approved`) and in the [audit evidence](/compliance/audit-evidence), where it's flagged **Auto-approved** (not an exception).
+- Every change to a rule (added, changed, turned on or off, deleted) is in the audit log with the full rule before and after. These changes appear under **Control changes** in the audit evidence.
+- The rules in force are listed in the generated control description, and in the API at `GET /api/v1/approval-rules`.
+
+Groups come from [directory sync](/identity/directory-sync). Until it's connected, name people in the rule instead.
 
 ## Fallbacks
 
